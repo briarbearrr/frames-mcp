@@ -16,7 +16,7 @@ Use `list_prompt_templates({ nodeType: "textAI" })` to find the right enrichment
 
 ## Use storyAI for multi-scene, textAI for single-scene
 
-If the user wants a single image or video, use `textAI` to enrich the prompt. If they want multiple scenes (slideshow, video series, story), use `storyAI` — it generates structured multi-scene output that can be split with an `iterator` node. storyAI has modes like "multishot" and "continuous shot" to guide how it structures the scenes.
+If the user wants a single image or video, use `textAI` to enrich the prompt. If they want multiple scenes (video series, story), use `storyAI` — it has 8 scene output handles (`scene_1` through `scene_8`), each producing a tailored prompt. Connect each scene to its own `imageAI` → `videoAI` chain. storyAI has modes like "multishot" and "continuous shot" to guide how it structures the scenes.
 
 Don't try to make `textAI` output multiple scenes by hacking the prompt.
 

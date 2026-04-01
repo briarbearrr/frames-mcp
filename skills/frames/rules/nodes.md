@@ -13,11 +13,11 @@
 | Type | Label | Input sockets | Output socket | Execution |
 |------|-------|--------------|--------------|-----------|
 | `textAI` | Text AI | text | text | Sync — instant result |
-| `storyAI` | Story AI | text | text | Sync — instant result |
+| `storyAI` | Story AI | text | text (8 scene handles: scene_1–scene_8) | Sync — instant result |
 | `imageAI` | Image AI | text, image (optional ref) | image | Async — background job, polls until done |
 | `videoAI` | Video AI | text, image | video | Async — background job (can take minutes) |
 | `voiceAI` | Voice AI | text | audio | Sync — instant result |
-| `websiteResearch` | Website Research | text | text | Sync |
+| `websiteResearch` | Website Research | text | text | Async — background job |
 
 ### Data nodes (configure and filter)
 | Type | Label | Purpose |
@@ -82,6 +82,12 @@ Use `get_node_type_info` for the exact field schema of any node — it returns a
 
 When connecting nodes, you need the exact handle IDs. Common patterns:
 
-- Input nodes: output handle is the socket type name (e.g., `text-output`, `image-output`, `video-output`)
-- AI nodes: input handles are named by what they accept (e.g., `text`, `image`, `reference-image`), output handle is the result type
-- Use `get_node_type_info` to get the precise handle IDs for any node type
+Handle IDs are short names, not suffixed. Common examples:
+- `textInput` output: `text`
+- `textAI` input: `text`, output: `text`
+- `imageAI` input: `text`, `image` (reference), output: `image`
+- `videoAI` input: `text`, `startFrame`, `endFrame`, `referenceImages`, `videoReference`, output: `video`
+- `voiceAI` input: `text`, output: `audio`
+- `storyAI` outputs: `scene_1` through `scene_8`
+
+Always use `get_node_type_info` to confirm exact handle IDs for any node type.

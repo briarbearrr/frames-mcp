@@ -1,0 +1,25 @@
+{
+  "name": "frames-mcp",
+  "version": "1.0.0",
+  "description": "Install the Frames MCP server and agent skills for Claude Code",
+  "bin": {
+    "frames-mcp": "./setup.mjs"
+  },
+  "files": [
+    "setup.mjs",
+    "skills/"
+  ],
+  "keywords": [
+    "frames",
+    "mcp",
+    "claude",
+    "ai",
+    "video",
+    "agent-skills"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/briarbearrr/frames-mcp"
+  }
+}

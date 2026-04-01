@@ -62,7 +62,7 @@ AI nodes use prompt templates to guide their behavior. Templates are server-side
 
 ## Style templates
 
-The `globalStyle` node applies visual style templates across connected AI nodes.
+The `globalStyle` node broadcasts visual style to all AI nodes in the workflow (no connections needed).
 
 - Use `list_style_templates` to browse options
 - Set `style: "none"` for no style override

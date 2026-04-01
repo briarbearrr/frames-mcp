@@ -20,16 +20,17 @@ If the user wants a single image or video, use `textAI` to enrich the prompt. If
 
 Don't try to make `textAI` output multiple scenes by hacking the prompt.
 
-## Video always needs an image first
+## Generate a start frame for video
 
-`videoAI` requires an image input — it animates a still image into video. Always generate or provide an image upstream:
+`videoAI` requires a text prompt and optionally accepts a start frame image. While you can run videoAI with just text, providing a start frame image produces significantly better results — it gives the model a clear visual anchor.
 
 ```
-textAI → imageAI → videoAI    (generated first frame)
-imageInput → videoAI            (user-provided first frame)
+textAI → imageAI → videoAI (startFrame)    (best results)
+textAI → videoAI                            (works, but less control)
+imageInput → videoAI (startFrame)           (user-provided frame)
 ```
 
-Never try to connect text directly to videoAI without an image in between.
+videoAI also accepts `endFrame`, `referenceImages`, and `videoReference` inputs depending on the model. Use `get_node_type_info({ nodeType: "videoAI" })` for full handle details.
 
 ## Iterate on images before generating video
 
@@ -61,9 +62,9 @@ textInput → textAI (script template) → voiceAI
 
 ## Use globalStyle for visual consistency
 
-When a workflow generates 2 or more images or videos, add a `globalStyle` node and connect it to all AI generation nodes. This ensures consistent visual style across all outputs.
+When a workflow generates 2 or more images or videos, add a `globalStyle` node to the workflow. It broadcasts style to all AI nodes automatically via the system — no edge connections needed. Just add the node and set its `style` field to a template slug from `list_style_templates`.
 
-Use `list_style_templates` to pick a style, or let the user choose. Without globalStyle, each generation may have a different look.
+Without globalStyle, each generation may have a different visual look.
 
 ## Use research nodes for brand context
 
@@ -94,6 +95,3 @@ Call `list_prompt_templates` and use the right template for the use case. Only s
 
 Always `validate_workflow` after building. Fix issues before telling the user it's ready.
 
-## Name your nodes
-
-Set meaningful `label` values so the workflow reads clearly. "Scene Description" not "Text AI", "Hero Image" not "Image AI".

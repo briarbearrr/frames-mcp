@@ -52,7 +52,7 @@ Common recipes for building workflows. Use `build_graph` for efficiency — it c
 
 **Goal**: Apply a consistent visual style across all generated images/videos.
 
-**How**: Add a `globalStyle` node and connect it to AI nodes. Set its `style` field to a style template slug from `list_style_templates`.
+**How**: Add a `globalStyle` node to the workflow — no connections needed, it broadcasts style automatically. Set its `style` field to a template slug from `list_style_templates`.
 
 The global style node injects style context into all connected AI prompts automatically.
 

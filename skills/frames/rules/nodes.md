@@ -22,7 +22,7 @@
 ### Data nodes (configure and filter)
 | Type | Label | Purpose |
 |------|-------|---------|
-| `globalStyle` | Global Style | Applies a visual style template to all connected AI nodes |
+| `globalStyle` | Global Style | Broadcasts a visual style to all AI nodes (no connections needed) |
 | `gate` | Gate | Approval checkpoint — pauses execution for review |
 | `trendSelector` | Trend Selector | Picks trending topics from the trend database |
 | `tiktokResearch` | TikTok Research | Analyzes TikTok trends and content |

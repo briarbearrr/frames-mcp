@@ -15,13 +15,13 @@ console.log('  [1/2] Adding Frames MCP server...');
 try {
   execFileSync(
     'claude',
-    ['mcp', 'add', 'frames', '--transport', 'streamable-http', MCP_URL],
+    ['mcp', 'add', '--transport', 'http', 'frames', MCP_URL],
     { stdio: 'pipe' },
   );
   console.log('         MCP server added.');
 } catch {
   console.log('         MCP server already configured or claude CLI not found.');
-  console.log(`         Manual: claude mcp add frames --transport streamable-http ${MCP_URL}`);
+  console.log(`         Manual: claude mcp add --transport http frames ${MCP_URL}`);
 }
 
 // Step 2: Copy skill files

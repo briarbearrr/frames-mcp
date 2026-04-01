@@ -21,7 +21,7 @@ If the installer doesn't work, you can set up manually:
 
 ```bash
 # Add MCP server
-claude mcp add frames --transport streamable-http https://frames-backend-ugzz.onrender.com/mcp
+claude mcp add --transport http frames https://frames-backend-ugzz.onrender.com/mcp
 
 # Install skill (via skills CLI)
 npx skills add briarbearrr/frames-mcp

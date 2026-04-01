@@ -4,11 +4,13 @@
 
 | Sync (instant result) | Async (background job) |
 |----------------------|----------------------|
-| `textAI`, `storyAI`, `voiceAI` | `imageAI`, `videoAI` |
+| `textAI`, `storyAI`, `voiceAI`, `trendSelector` | `imageAI`, `videoAI`, `tiktokResearch`, `websiteResearch`, `videoCaptions`, `slideshow` |
 
 **Sync**: `run_node` returns the output immediately in the response.
 
-**Async**: `run_node` starts a background job, polls automatically, and returns the result when complete. Video generation can take several minutes — let the user know it's processing.
+**Async**: `run_node` starts a background job, polls automatically, and returns the result when complete. Video generation can take several minutes, captions and slideshows a few minutes — let the user know it's processing.
+
+**Not executable**: Input nodes (`textInput`, `imageInput`, `videoInput`), edit nodes (`videoTrim`, `videoMerge`), flow nodes (`iterator`, `closeIterator`), `gate`, and `globalStyle` cannot be run via `run_node`.
 
 ## Running a single node
 

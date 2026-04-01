@@ -34,6 +34,10 @@ You interact with Frames through MCP tools. You can create workflows, add and co
 
 4. Ask before executing — running nodes costs credits.
 
+## Before you build anything
+
+Load [rules/best-practices.md](rules/best-practices.md) first — it covers critical patterns like prompt enrichment, visual consistency, and cost awareness that apply to every workflow you build.
+
 ## Tool categories
 
 Load the relevant rules file when working in each area:

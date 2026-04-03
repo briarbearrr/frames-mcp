@@ -88,8 +88,16 @@ Use `get_node_type_info` for the exact field schema of any node if you need to c
 
 ## Handle IDs
 
-When connecting nodes, you need the exact handle IDs. Common patterns:
+Both input and output handles use the raw ID from node definitions — no suffixes, no transformations. Use `get_node_type_info({ nodeType: "..." })` to see exact IDs for any node.
 
-- Input nodes: output handle is the socket type name (e.g., `text-output`, `image-output`, `video-output`)
-- AI nodes: input handles are named by what they accept (e.g., `text`, `image`, `reference-image`), output handle is the result type
-- Use `get_node_type_info` to get the precise handle IDs for any node type
+Common handles:
+- `textInput`: output `text`
+- `textAI`: output `text`, input `text`
+- `storyAI`: outputs `scene_1`–`scene_5`, input `text`
+- `imageAI`: output `image`, inputs `text`, `image`
+- `videoAI`: output `video`, inputs `text`, `image`
+- `voiceAI`: output `audio`, input `text`
+- `websiteResearch`: outputs `brandDocument`, `colorPalette`, `screenshots`
+- `videoCaptions`: output `video`, inputs `video`, `audio`
+- `slideshow`: output `video`, inputs vary by config
+- `iterator`/`closeIterator`: output `items`/`collected`

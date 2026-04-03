@@ -77,9 +77,9 @@ The global style node injects style context into all connected AI prompts automa
 3. `get_workflow` — inspect the graph to understand the pipeline
 4. Modify as needed with `update_node_data` or graph mutations
 
-## Building with `build_graph`
+## Building workflows — ALWAYS use `build_graph`
 
-Always prefer `build_graph` over individual `add_node` + `connect_nodes` calls. It's atomic and supports `tempId` references.
+**NEVER** use `add_node` + `connect_nodes` individually. ALWAYS use `build_graph` — it's atomic, faster (1 call vs many), and uses `tempId` references so you don't need real node IDs. Nodes are auto-positioned in a clean DAG layout when positions are omitted.
 
 ```
 build_graph({
@@ -91,14 +91,14 @@ build_graph({
     { tempId: "t4", type: "videoAI", data: { model: "kling-2.0" } }
   ],
   addEdges: [
-    { sourceNode: "t1", sourceHandle: "text-output", targetNode: "t2", targetHandle: "text" },
-    { sourceNode: "t2", sourceHandle: "text-output", targetNode: "t3", targetHandle: "text" },
-    { sourceNode: "t3", sourceHandle: "image-output", targetNode: "t4", targetHandle: "image" }
+    { sourceNode: "t1", sourceHandle: "text", targetNode: "t2", targetHandle: "text" },
+    { sourceNode: "t2", sourceHandle: "text", targetNode: "t3", targetHandle: "text" },
+    { sourceNode: "t3", sourceHandle: "image", targetNode: "t4", targetHandle: "image" }
   ]
 })
 ```
 
-**Important**: The `tempId` values are only for referencing within the same `build_graph` call. The server returns the real node IDs.
+**Important**: `tempId` values are only for referencing within the same `build_graph` call. The server returns the real node IDs. Handle IDs are the raw names from node definitions — see [nodes.md](nodes.md) for the full reference.
 
 ## Node positioning
 

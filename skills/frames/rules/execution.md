@@ -1,5 +1,13 @@
 # Execution
 
+## Inspecting node types
+
+```
+get_node_type_info({ nodeType: "videoAI" })
+```
+
+Parameter is `nodeType` (not `type`). Returns fields, models, input/output handles, and constraints.
+
 ## Sync vs async nodes
 
 | Sync (instant result)          | Async (background job) |

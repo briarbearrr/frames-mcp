@@ -65,7 +65,7 @@ Load the relevant rules file when working in each area:
 ### Discovery (always safe to call)
 
 - `list_node_types` — see all available nodes
-- `get_node_type_info` — details on a specific node (fields, models, connections)
+- `get_node_type_info({ nodeType })` — details on a specific node (fields, models, handle IDs)
 - `list_models` — available AI models by category
 - `get_model_capabilities` — full spec for a model
 - `list_prompt_templates` — prompt presets for AI nodes
@@ -79,9 +79,9 @@ Load the relevant rules file when working in each area:
 
 ### Graph building
 
-- `add_node` / `remove_node` / `update_node_data` — single operations
-- `connect_nodes` / `disconnect_nodes` / `list_edges` — edge management
-- `build_graph` — atomic batch operation (preferred for building entire pipelines)
+- `add_node` / `remove_node` / `update_node_data` — single operations (avoid for building — use `build_graph`)
+- `connect_nodes({ sourceHandle, targetHandle })` / `disconnect_nodes` / `list_edges` — edge management (avoid — use `build_graph`)
+- `build_graph` — **ALWAYS use this** for building pipelines (atomic, 1 call vs many)
 - `validate_workflow` — check for issues before execution
 
 ### Execution (costs credits)

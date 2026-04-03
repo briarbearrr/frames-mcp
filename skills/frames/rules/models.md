@@ -29,11 +29,13 @@ Used by `imageAI` nodes.
 Used by `videoAI` nodes. These are async — execution takes minutes.
 
 - **Kling** models (various versions and quality tiers)
+- **Veo** (Google) models — some have built-in audio
 - Standard mode is faster/cheaper, Pro mode is higher quality
 - Duration range is model-dependent (3–15s) — call `get_model_capabilities` to check supported durations
+- **Not all models/modes accept image inputs (startFrame)**. Always call `get_model_capabilities` before connecting `imageAI → videoAI`. If the model doesn't support `startFrame`, either pick a different model/mode or skip the image-to-video connection.
 - Use `list_models({ category: "video" })` for current options
 
-**When to recommend**: Latest Kling version in standard mode for speed, pro mode for quality. Always warn the user that video generation takes a few minutes.
+**When to recommend**: Latest Kling version in pro mode when using start frames. Veo for built-in audio. Always warn the user that video generation takes a few minutes.
 
 ### Voice models
 

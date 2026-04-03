@@ -12,24 +12,25 @@
 
 Each node type has a specific role. Connect them based on what data flows where:
 
-| Source node | Output | Connects to | Target handle | Why |
-|---|---|---|---|---|
-| `textInput` | `text` | `textAI` | `text` | Raw input → prompt enrichment |
-| `textInput` | `text` | `websiteResearch` | — | websiteResearch has no inputs; URL is configured via data |
-| `textAI` (video prompt) | `text` | `videoAI` | `text` | Enriched prompt → video generation |
-| `textAI` (image prompt) | `text` | `imageAI` | `text` | Enriched prompt → image generation |
-| `textAI` (narration) | `text` | `voiceAI` | `text` | Script → voice synthesis |
-| `imageAI` | `image` | `videoAI` | `image` | Start frame → video (much better results) |
-| `videoAI` | `video` | `videoCaptions` | `video` | Video → add captions |
-| `voiceAI` | `audio` | `videoCaptions` | `audio` | Voiceover → burn into captioned video |
-| `websiteResearch` | `brandDocument` | `textAI` | `text` | Brand context → prompt enrichment |
-| `websiteResearch` | `colorPalette` | `textAI` | `text` | Color info → style-aware prompts |
-| `websiteResearch` | `screenshots` | `imageAI` | `image` | Website visual → reference image |
-| `storyAI` | `scene_1`–`scene_5` | `imageAI` | `text` | Scene prompt → image per scene |
-| `imageAI` #1 | `image` | `imageAI` #2 | `image` | Reference chain for character consistency |
-| `videoAI` | `firstFrame`/`lastFrame` | `videoAI` (next) | `image` | Scene continuity across clips |
+| Source node             | Output                   | Connects to       | Target handle | Why                                                       |
+| ----------------------- | ------------------------ | ----------------- | ------------- | --------------------------------------------------------- |
+| `textInput`             | `text`                   | `textAI`          | `text`        | Raw input → prompt enrichment                             |
+| `textInput`             | `text`                   | `websiteResearch` | —             | websiteResearch has no inputs; URL is configured via data |
+| `textAI` (video prompt) | `text`                   | `videoAI`         | `text`        | Enriched prompt → video generation                        |
+| `textAI` (image prompt) | `text`                   | `imageAI`         | `text`        | Enriched prompt → image generation                        |
+| `textAI` (narration)    | `text`                   | `voiceAI`         | `text`        | Script → voice synthesis                                  |
+| `imageAI`               | `image`                  | `videoAI`         | `startFrame`  | Start frame → video (much better results). **Not all models/modes accept this** — check with `get_model_capabilities` |
+| `videoAI`               | `video`                  | `videoCaptions`   | `video`       | Video → add captions                                      |
+| `voiceAI`               | `audio`                  | `videoCaptions`   | `audio`       | Voiceover → burn into captioned video                     |
+| `websiteResearch`       | `brandDocument`          | `textAI`          | `text`        | Brand context → prompt enrichment                         |
+| `websiteResearch`       | `colorPalette`           | `textAI`          | `text`        | Color info → style-aware prompts                          |
+| `websiteResearch`       | `screenshots`            | `imageAI`         | `image`       | Website visual → reference image                          |
+| `storyAI`               | `scene_1`–`scene_5`      | `imageAI`         | `text`        | Scene prompt → image per scene                            |
+| `imageAI` #1            | `image`                  | `imageAI` #2      | `image`       | Reference chain for character consistency                 |
+| `videoAI`               | `firstFrame`/`lastFrame` | `videoAI` (next)  | `startFrame`  | Scene continuity across clips                             |
 
 **Anti-patterns** (never do these):
+
 - `textInput` → `videoAI` (no prompt enrichment — bad results)
 - `textAI` (narration) → `videoAI` (narration text is not a video prompt)
 - `voiceAI` → `videoAI` (audio doesn't connect to video generation)
@@ -56,7 +57,7 @@ build_graph({
     { sourceNode: "t1", sourceHandle: "text", targetNode: "t2", targetHandle: "text" },
     { sourceNode: "t2", sourceHandle: "text", targetNode: "t3", targetHandle: "text" },
     { sourceNode: "t2", sourceHandle: "text", targetNode: "t4", targetHandle: "text" },
-    { sourceNode: "t3", sourceHandle: "image", targetNode: "t4", targetHandle: "image" }
+    { sourceNode: "t3", sourceHandle: "image", targetNode: "t4", targetHandle: "startFrame" }
   ]
 })
 ```
@@ -90,7 +91,7 @@ build_graph({
     { sourceNode: "input", sourceHandle: "text", targetNode: "narration", targetHandle: "text" },
     { sourceNode: "vidPrompt", sourceHandle: "text", targetNode: "img", targetHandle: "text" },
     { sourceNode: "vidPrompt", sourceHandle: "text", targetNode: "video", targetHandle: "text" },
-    { sourceNode: "img", sourceHandle: "image", targetNode: "video", targetHandle: "image" },
+    { sourceNode: "img", sourceHandle: "image", targetNode: "video", targetHandle: "startFrame" },
     { sourceNode: "narration", sourceHandle: "text", targetNode: "voice", targetHandle: "text" },
     { sourceNode: "video", sourceHandle: "video", targetNode: "captions", targetHandle: "video" },
     { sourceNode: "voice", sourceHandle: "audio", targetNode: "captions", targetHandle: "audio" }

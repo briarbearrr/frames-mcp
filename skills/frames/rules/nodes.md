@@ -91,11 +91,12 @@ Use `get_node_type_info` for the exact field schema of any node if you need to c
 Both input and output handles use the raw ID from node definitions — no suffixes, no transformations. Use `get_node_type_info({ nodeType: "..." })` to see exact IDs for any node.
 
 Common handles:
+
 - `textInput`: output `text`
 - `textAI`: output `text`, input `text`
 - `storyAI`: outputs `scene_1`–`scene_5`, input `text`
 - `imageAI`: output `image`, inputs `text`, `image`
-- `videoAI`: output `video`, inputs `text`, `image`
+- `videoAI`: output `video`, inputs `text`, `startFrame` (not all models accept startFrame — use `get_model_capabilities` to check)
 - `voiceAI`: output `audio`, input `text`
 - `websiteResearch`: outputs `brandDocument`, `colorPalette`, `screenshots`
 - `videoCaptions`: output `video`, inputs `video`, `audio`

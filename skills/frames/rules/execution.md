@@ -46,6 +46,7 @@ run_workflow({
 ```
 
 **userInputs format**: Keyed by input node ID. Supports two formats:
+
 - **Shorthand**: `"nodeId": "value"` — auto-wraps based on node type (`textInput` → `{ text: value }`, `imageInput` → `{ imageUrls: value }`, `videoInput` → `{ videoUrl: value }`)
 - **Full form**: `"nodeId": { "text": "...", "otherField": "..." }` — passed as-is to the node data
 

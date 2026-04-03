@@ -34,14 +34,35 @@ Common recipes for building workflows. Use `build_graph` for efficiency — it c
 
 **Goal**: Generate a video with AI narration.
 
-**Pipeline**: `textInput` → `textAI` (script) → `imageAI` → `videoAI` + `voiceAI` → (user combines externally or uses slideshow)
+**Key rule**: Use TWO separate Text AI nodes — one for the video prompt, one for the narration script. Each feeds ONLY its downstream node. Never connect the narration Text AI to Video AI.
 
-**Steps**:
+```
+textInput ──→ textAI #1 (video prompt) ──→ videoAI ──────→ videoCaptions
+    │                                                           ↑
+    └────→ textAI #2 (narration script) ──→ voiceAI ───────────┘
+```
 
-1. `textInput` → `textAI` (generates the narration script)
-2. `textAI` → `voiceAI` (converts script to speech)
-3. Same `textAI` or a second `textAI` → `imageAI` → `videoAI` (generates visuals)
-4. The video and audio outputs are available separately in the execution results
+```
+build_graph({
+  workflowId: "...",
+  addNodes: [
+    { tempId: "input", type: "textInput", data: { text: "..." } },
+    { tempId: "prompt", type: "textAI", data: { template: "video" } },
+    { tempId: "narration", type: "textAI", data: { template: "narration" } },
+    { tempId: "video", type: "videoAI", data: { model: "veo-3.1-fast", aspectRatio: "9:16" } },
+    { tempId: "voice", type: "voiceAI", data: { presetVoiceId: "..." } },
+    { tempId: "captions", type: "videoCaptions" }
+  ],
+  addEdges: [
+    { sourceNode: "input", sourceHandle: "text", targetNode: "prompt", targetHandle: "text" },
+    { sourceNode: "input", sourceHandle: "text", targetNode: "narration", targetHandle: "text" },
+    { sourceNode: "prompt", sourceHandle: "text", targetNode: "video", targetHandle: "text" },
+    { sourceNode: "narration", sourceHandle: "text", targetNode: "voice", targetHandle: "text" },
+    { sourceNode: "video", sourceHandle: "video", targetNode: "captions", targetHandle: "video" },
+    { sourceNode: "voice", sourceHandle: "audio", targetNode: "captions", targetHandle: "audio" }
+  ]
+})
+```
 
 **Tip**: Use `list_voices` to let the user pick a voice they like.
 

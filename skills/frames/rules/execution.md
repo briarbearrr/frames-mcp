@@ -52,6 +52,15 @@ run_workflow({
 
 **Important**: Input nodes (textInput, imageInput, videoInput) must have data — either set via `update_node_data` before running, or passed via `userInputs`. The tool validates this and returns an error listing empty input nodes.
 
+**Best practice for large inputs**: Set text data via `update_node_data` first, then call `run_workflow` without `userInputs`. This avoids large payloads in a single MCP call and is more reliable over flaky connections.
+
+```
+// Step 1: Set the input text
+update_node_data({ workflowId: "...", nodeId: "text-input-id", data: { text: "long content..." } })
+// Step 2: Run without userInputs — uses the data already on the node
+run_workflow({ workflowId: "..." })
+```
+
 - Executes all nodes in topological order (respects dependencies)
 - Returns a `productRunId` — use `get_node_outputs` to retrieve results
 - The workflow runs in the background as a product run

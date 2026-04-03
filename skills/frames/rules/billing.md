@@ -20,6 +20,7 @@ get_pricing({
 Returns pricing entries with: `operation`, `model`, `configKey`, `billingUnit` (per_call, per_second, per_character), `credits`, `description`.
 
 Common operations:
+
 - `text-generation` — textAI, storyAI
 - `image-generation` — imageAI
 - `video-generation` — videoAI
@@ -44,6 +45,7 @@ Returns per-node and total credit cost estimate for a published workflow.
 - Voice synthesis costs depend on text length (per_character billing)
 
 When the user asks to run something, give them a rough cost estimate first:
+
 1. Look up pricing for the relevant operations/models
 2. Mention the approximate total
 3. Ask for confirmation before executing

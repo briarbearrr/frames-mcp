@@ -2,6 +2,15 @@
 
 Common recipes for building workflows. Use `build_graph` for efficiency — it creates all nodes and edges in one atomic operation.
 
+## Pattern: Reuse existing workflows
+
+**Always check first** before building from scratch:
+
+1. `list_workflows` — scan `nodeTypes` arrays for matching pipeline shapes
+2. `list_products` — check for published products matching the use case
+3. If found: `duplicate_workflow` and modify via `update_node_data`
+4. If not found: proceed with `create_workflow` + `build_graph`
+
 ## Pattern: Simple text-to-video
 
 **Goal**: Generate a video from a text description.
@@ -9,6 +18,7 @@ Common recipes for building workflows. Use `build_graph` for efficiency — it c
 **Pipeline**: `textInput` → `textAI` → `imageAI` → `videoAI`
 
 **Steps**:
+
 1. Create workflow with `create_workflow`
 2. Use `build_graph` to add all nodes and connect them:
    - `textInput`: user provides the concept/description
@@ -27,6 +37,7 @@ Common recipes for building workflows. Use `build_graph` for efficiency — it c
 **Pipeline**: `textInput` → `textAI` (script) → `imageAI` → `videoAI` + `voiceAI` → (user combines externally or uses slideshow)
 
 **Steps**:
+
 1. `textInput` → `textAI` (generates the narration script)
 2. `textAI` → `voiceAI` (converts script to speech)
 3. Same `textAI` or a second `textAI` → `imageAI` → `videoAI` (generates visuals)
@@ -34,32 +45,33 @@ Common recipes for building workflows. Use `build_graph` for efficiency — it c
 
 **Tip**: Use `list_voices` to let the user pick a voice they like.
 
-## Pattern: Multi-scene video
+## Pattern: Slideshow with captions
 
-**Goal**: Create a multi-scene video from a concept.
+**Goal**: Create a multi-scene slideshow with captions and audio.
 
-**Pipeline**: `textInput` → `storyAI` → scene_1/scene_2/scene_3 each → `imageAI` → `videoAI`
-
-**How it works**: `storyAI` has 8 fixed scene output handles (`scene_1` through `scene_8`). Each scene output connects directly to its own `imageAI` → `videoAI` chain. Set the number of scenes in storyAI's config.
+**Pipeline**: `textInput` → `storyAI` → `imageAI` (multiple via iterator) → `slideshow` → `videoCaptions`
 
 **Steps**:
-1. `textInput` → `storyAI`: generates multi-scene prompts
-2. `storyAI.scene_1` → `imageAI #1` → `videoAI #1`
-3. `storyAI.scene_2` → `imageAI #2` → `videoAI #2` (chain imageAI #1 as reference)
-4. Repeat for each scene
-5. Use `videoMerge` to combine clips, or download individually
+
+1. `textInput` → `storyAI`: generates a multi-scene story structure
+2. `storyAI` → `iterator`: splits scenes into individual items
+3. Inside loop: each scene → `imageAI` (generates scene image)
+4. `closeIterator`: collects all images
+5. Images + optional audio → `slideshow`: combines into video
+6. `slideshow` → `videoCaptions`: adds subtitles
 
 ## Pattern: Style-consistent content
 
 **Goal**: Apply a consistent visual style across all generated images/videos.
 
-**How**: Add a `globalStyle` node to the workflow — no connections needed, it broadcasts style automatically. Set its `style` field to a template slug from `list_style_templates`.
+**How**: Add a `globalStyle` node and connect it to AI nodes. Set its `style` field to a style template slug from `list_style_templates`.
 
 The global style node injects style context into all connected AI prompts automatically.
 
 ## Pattern: Quick start from template
 
 **Steps**:
+
 1. `list_workflow_templates` — browse available pre-built workflows
 2. `create_from_template` — create a copy to customize
 3. `get_workflow` — inspect the graph to understand the pipeline
@@ -67,7 +79,7 @@ The global style node injects style context into all connected AI prompts automa
 
 ## Building with `build_graph`
 
-Always prefer `build_graph` over individual `add_node` + `connect_nodes` calls. It's atomic and supports `tempId` references:
+Always prefer `build_graph` over individual `add_node` + `connect_nodes` calls. It's atomic and supports `tempId` references.
 
 ```
 build_graph({
@@ -79,9 +91,9 @@ build_graph({
     { tempId: "t4", type: "videoAI", data: { model: "kling-2.0" } }
   ],
   addEdges: [
-    { sourceNode: "t1", sourceHandle: "text", targetNode: "t2", targetHandle: "text" },
-    { sourceNode: "t2", sourceHandle: "text", targetNode: "t3", targetHandle: "text" },
-    { sourceNode: "t3", sourceHandle: "image", targetNode: "t4", targetHandle: "startFrame" }
+    { sourceNode: "t1", sourceHandle: "text-output", targetNode: "t2", targetHandle: "text" },
+    { sourceNode: "t2", sourceHandle: "text-output", targetNode: "t3", targetHandle: "text" },
+    { sourceNode: "t3", sourceHandle: "image-output", targetNode: "t4", targetHandle: "image" }
   ]
 })
 ```

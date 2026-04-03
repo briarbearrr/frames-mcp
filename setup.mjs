@@ -2,8 +2,8 @@
 
 import { execFileSync } from 'child_process';
 import { cpSync, existsSync, mkdirSync } from 'fs';
-import { dirname, join } from 'path';
 import { homedir } from 'os';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -27,7 +27,9 @@ try {
   console.log('         MCP server added.');
 } catch {
   console.log('         MCP server already configured or claude CLI not found.');
-  console.log(`         Manual: claude mcp add --transport http --scope ${scope} frames ${MCP_URL}`);
+  console.log(
+    `         Manual: claude mcp add --transport http --scope ${scope} frames ${MCP_URL}`,
+  );
 }
 
 // Step 2: Copy skill files
@@ -46,4 +48,6 @@ if (!existsSync(skillSrc)) {
 }
 
 console.log('\n  Done! Start Claude Code and the Frames tools will be available.');
-console.log(`  Tip: run with ${isGlobal ? '' : '--global (-g) for all projects, or without flag for '}project-only.\n`);
+console.log(
+  `  Tip: run with ${isGlobal ? '' : '--global (-g) for all projects, or without flag for '}project-only.\n`,
+);

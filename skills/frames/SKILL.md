@@ -34,9 +34,20 @@ You interact with Frames through MCP tools. You can create workflows, add and co
 
 4. Ask before executing — running nodes costs credits.
 
-## Before you build anything
+## Check existing resources first
 
-Load [rules/best-practices.md](rules/best-practices.md) first — it covers critical patterns like prompt enrichment, visual consistency, and cost awareness that apply to every workflow you build.
+Before creating a new workflow, check for existing resources:
+
+1. `list_workflows` — check `nodeTypes` array for workflows with matching pipeline structure
+2. `list_products` — check for published products that already do what's needed
+3. If a match exists, use `duplicate_workflow` to copy and modify
+4. Only `create_workflow` from scratch if nothing suitable exists
+
+When scanning workflows, if any are missing a description, generate one from the graph structure via `get_workflow` and save it with `update_workflow`.
+
+## Parameter validation
+
+The server validates all field values on `add_node`, `update_node_data`, and `build_graph` — invalid values return clear error messages. These tools also return `configurableFields` with full constraints (min/max/step/options) in their responses.
 
 ## Tool categories
 
@@ -52,6 +63,7 @@ Load the relevant rules file when working in each area:
 ## Quick tool reference
 
 ### Discovery (always safe to call)
+
 - `list_node_types` — see all available nodes
 - `get_node_type_info` — details on a specific node (fields, models, connections)
 - `list_models` — available AI models by category
@@ -62,25 +74,30 @@ Load the relevant rules file when working in each area:
 - `list_workflow_templates` — pre-built workflow templates
 
 ### Workflow management
+
 - `create_workflow` / `get_workflow` / `list_workflows` / `update_workflow` / `delete_workflow` / `duplicate_workflow`
 
 ### Graph building
+
 - `add_node` / `remove_node` / `update_node_data` — single operations
 - `connect_nodes` / `disconnect_nodes` / `list_edges` — edge management
 - `build_graph` — atomic batch operation (preferred for building entire pipelines)
 - `validate_workflow` — check for issues before execution
 
 ### Execution (costs credits)
+
 - `run_node` — execute a single node
 - `run_workflow` — execute entire workflow
 - `get_node_outputs` — retrieve execution results
 - `cancel_job` — cancel an in-progress async job
 
 ### Billing
+
 - `get_credit_balance` — check remaining credits
 - `get_pricing` — credit costs per operation/model
 
 ### Products (API publishing)
+
 - `publish_product` / `republish_product` / `unpublish_product` / `list_products` / `get_product`
 - `get_product_schema` / `estimate_product_cost`
 - `set_product_inputs` — mark nodes as API inputs/outputs
@@ -88,5 +105,6 @@ Load the relevant rules file when working in each area:
 - `get_run_status` / `list_runs` — monitor API runs
 
 ### Templates
+
 - `list_workflow_templates` — browse available templates
 - `create_from_template` — create workflow from a template

@@ -1,45 +1,76 @@
-# Workflow Patterns
+# Workflow Patterns & Best Practices
 
-Common recipes for building workflows. Use `build_graph` for efficiency — it creates all nodes and edges in one atomic operation.
+## Golden rules
 
-## Pattern: Reuse existing workflows
+1. **ALWAYS use `build_graph`** — never `add_node` + `connect_nodes` individually. `build_graph` is atomic, 1 call, auto-positions nodes in a clean DAG layout.
+2. **ALWAYS enrich prompts** — never connect `textInput` directly to `imageAI` or `videoAI`. Route through `textAI` with a prompt template first. This is the single biggest quality improvement.
+3. **Image first, then video** — video generation is slow (1–4 min) and expensive. Generate an image first, iterate until it looks right, then use it as a start frame for video. Don't skip straight to video.
+4. **One Text AI per purpose** — when a workflow needs both a video prompt AND a narration script, use TWO separate `textAI` nodes. Each feeds ONLY its downstream node. Never connect narration to video or vice versa.
+5. **Reuse before building** — `list_workflows` first, `duplicate_workflow` if a match exists.
 
-**Always check first** before building from scratch:
+## Connection logic
 
-1. `list_workflows` — scan `nodeTypes` arrays for matching pipeline shapes
-2. `list_products` — check for published products matching the use case
-3. If found: `duplicate_workflow` and modify via `update_node_data`
-4. If not found: proceed with `create_workflow` + `build_graph`
+Each node type has a specific role. Connect them based on what data flows where:
+
+| Source node | Output | Connects to | Target handle | Why |
+|---|---|---|---|---|
+| `textInput` | `text` | `textAI` | `text` | Raw input → prompt enrichment |
+| `textInput` | `text` | `websiteResearch` | — | websiteResearch has no inputs; URL is configured via data |
+| `textAI` (video prompt) | `text` | `videoAI` | `text` | Enriched prompt → video generation |
+| `textAI` (image prompt) | `text` | `imageAI` | `text` | Enriched prompt → image generation |
+| `textAI` (narration) | `text` | `voiceAI` | `text` | Script → voice synthesis |
+| `imageAI` | `image` | `videoAI` | `image` | Start frame → video (much better results) |
+| `videoAI` | `video` | `videoCaptions` | `video` | Video → add captions |
+| `voiceAI` | `audio` | `videoCaptions` | `audio` | Voiceover → burn into captioned video |
+| `websiteResearch` | `brandDocument` | `textAI` | `text` | Brand context → prompt enrichment |
+| `websiteResearch` | `colorPalette` | `textAI` | `text` | Color info → style-aware prompts |
+| `websiteResearch` | `screenshots` | `imageAI` | `image` | Website visual → reference image |
+| `storyAI` | `scene_1`–`scene_5` | `imageAI` | `text` | Scene prompt → image per scene |
+| `imageAI` #1 | `image` | `imageAI` #2 | `image` | Reference chain for character consistency |
+| `videoAI` | `firstFrame`/`lastFrame` | `videoAI` (next) | `image` | Scene continuity across clips |
+
+**Anti-patterns** (never do these):
+- `textInput` → `videoAI` (no prompt enrichment — bad results)
+- `textAI` (narration) → `videoAI` (narration text is not a video prompt)
+- `voiceAI` → `videoAI` (audio doesn't connect to video generation)
+- `textInput` → `voiceAI` (raw text sounds unnatural — enrich first)
 
 ## Pattern: Simple text-to-video
 
-**Goal**: Generate a video from a text description.
+```
+textInput → textAI (video prompt) → imageAI → videoAI
+```
 
-**Pipeline**: `textInput` → `textAI` → `imageAI` → `videoAI`
-
-**Steps**:
-
-1. Create workflow with `create_workflow`
-2. Use `build_graph` to add all nodes and connect them:
-   - `textInput`: user provides the concept/description
-   - `textAI`: enhances the description into a detailed scene prompt (set `template` to a suitable prompt template)
-   - `imageAI`: generates the first frame from the enhanced text
-   - `videoAI`: animates the image into a video
-3. Validate with `validate_workflow`
-4. Configure node data (models, templates) with `update_node_data` or as part of `build_graph` dataUpdates
-
-**Tip**: Use `list_prompt_templates` for `textAI` and `imageAI` to pick the right prompt template for the use case.
-
-## Pattern: Video with voiceover
-
-**Goal**: Generate a video with AI narration.
-
-**Key rule**: Use TWO separate Text AI nodes — one for the video prompt, one for the narration script. Each feeds ONLY its downstream node. Never connect the narration Text AI to Video AI.
+The `imageAI` generates a start frame. This gives the video model a clear visual anchor and produces much better results than text-only input.
 
 ```
-textInput ──→ textAI #1 (video prompt) ──→ videoAI ──────→ videoCaptions
-    │                                                           ↑
-    └────→ textAI #2 (narration script) ──→ voiceAI ───────────┘
+build_graph({
+  workflowId: "...",
+  addNodes: [
+    { tempId: "t1", type: "textInput", data: { text: "A cat playing piano" } },
+    { tempId: "t2", type: "textAI", data: { template: "video" } },
+    { tempId: "t3", type: "imageAI" },
+    { tempId: "t4", type: "videoAI" }
+  ],
+  addEdges: [
+    { sourceNode: "t1", sourceHandle: "text", targetNode: "t2", targetHandle: "text" },
+    { sourceNode: "t2", sourceHandle: "text", targetNode: "t3", targetHandle: "text" },
+    { sourceNode: "t2", sourceHandle: "text", targetNode: "t4", targetHandle: "text" },
+    { sourceNode: "t3", sourceHandle: "image", targetNode: "t4", targetHandle: "image" }
+  ]
+})
+```
+
+Note: `textAI` feeds BOTH `imageAI` (for the start frame) AND `videoAI` (for the video prompt). The image also feeds into videoAI as the start frame.
+
+## Pattern: Video with voiceover + captions
+
+Two separate `textAI` nodes — one for visuals, one for narration. They never cross-connect.
+
+```
+textInput ──→ textAI #1 (video prompt) ──→ imageAI ──→ videoAI ──→ videoCaptions
+    │                                                                    ↑
+    └────→ textAI #2 (narration) ──→ voiceAI ────────────────────────────┘
 ```
 
 ```
@@ -47,16 +78,19 @@ build_graph({
   workflowId: "...",
   addNodes: [
     { tempId: "input", type: "textInput", data: { text: "..." } },
-    { tempId: "prompt", type: "textAI", data: { template: "video" } },
+    { tempId: "vidPrompt", type: "textAI", data: { template: "video" } },
     { tempId: "narration", type: "textAI", data: { template: "narration" } },
-    { tempId: "video", type: "videoAI", data: { model: "veo-3.1-fast", aspectRatio: "9:16" } },
+    { tempId: "img", type: "imageAI" },
+    { tempId: "video", type: "videoAI", data: { aspectRatio: "9:16" } },
     { tempId: "voice", type: "voiceAI", data: { presetVoiceId: "..." } },
     { tempId: "captions", type: "videoCaptions" }
   ],
   addEdges: [
-    { sourceNode: "input", sourceHandle: "text", targetNode: "prompt", targetHandle: "text" },
+    { sourceNode: "input", sourceHandle: "text", targetNode: "vidPrompt", targetHandle: "text" },
     { sourceNode: "input", sourceHandle: "text", targetNode: "narration", targetHandle: "text" },
-    { sourceNode: "prompt", sourceHandle: "text", targetNode: "video", targetHandle: "text" },
+    { sourceNode: "vidPrompt", sourceHandle: "text", targetNode: "img", targetHandle: "text" },
+    { sourceNode: "vidPrompt", sourceHandle: "text", targetNode: "video", targetHandle: "text" },
+    { sourceNode: "img", sourceHandle: "image", targetNode: "video", targetHandle: "image" },
     { sourceNode: "narration", sourceHandle: "text", targetNode: "voice", targetHandle: "text" },
     { sourceNode: "video", sourceHandle: "video", targetNode: "captions", targetHandle: "video" },
     { sourceNode: "voice", sourceHandle: "audio", targetNode: "captions", targetHandle: "audio" }
@@ -64,72 +98,67 @@ build_graph({
 })
 ```
 
-**Tip**: Use `list_voices` to let the user pick a voice they like.
+## Pattern: Brand analysis → marketing video
 
-## Pattern: Slideshow with captions
+Use `websiteResearch` to extract brand context, then feed it into prompt generation.
 
-**Goal**: Create a multi-scene slideshow with captions and audio.
+```
+websiteResearch ──brandDocument──→ textAI #1 (video prompt) ──→ imageAI ──→ videoAI ──→ videoCaptions
+       │                                                                                      ↑
+       └──brandDocument──→ textAI #2 (narration) ──→ voiceAI ────────────────────────────────┘
+```
 
-**Pipeline**: `textInput` → `storyAI` → `imageAI` (multiple via iterator) → `slideshow` → `videoCaptions`
+`websiteResearch` has NO input sockets — the URL is configured via `update_node_data({ data: { url: "https://..." } })`. It outputs `brandDocument` (text analysis), `colorPalette` (colors), and `screenshots` (images).
 
-**Steps**:
+## Pattern: Multi-scene video (storyAI)
 
-1. `textInput` → `storyAI`: generates a multi-scene story structure
-2. `storyAI` → `iterator`: splits scenes into individual items
-3. Inside loop: each scene → `imageAI` (generates scene image)
-4. `closeIterator`: collects all images
-5. Images + optional audio → `slideshow`: combines into video
-6. `slideshow` → `videoCaptions`: adds subtitles
+For longer content with multiple scenes, use `storyAI` to generate per-scene prompts. Chain image references for character consistency.
+
+```
+textInput → storyAI ──scene_1──→ imageAI #1 → videoAI #1
+                  │                ↓ (image reference)
+                  ├──scene_2──→ imageAI #2 → videoAI #2
+                  │                ↓ (image reference)
+                  └──scene_3──→ imageAI #3 → videoAI #3
+```
+
+Each `imageAI` connects its `image` output to the next `imageAI`'s `image` input as a reference. This keeps characters and style consistent across scenes. Without this chaining, each scene generates completely different-looking visuals.
+
+After all videos are generated, use `videoMerge` to combine them, or `slideshow` for image-based sequences.
+
+## Pattern: TikTok research → inspired content
+
+Use `tiktokResearch` to analyze a trending video, then create content inspired by it.
+
+- `tiktokResearch` outputs: `content` (analysis text), `hook` (hook text), `frame` (start frame image), `clip` (video clip)
+- Connect `content` → `textAI` for context-aware prompt generation
+- Connect `clip` → `videoAI` as a video reference (model must support it)
+- Connect `frame` → `imageAI` as a reference image
 
 ## Pattern: Style-consistent content
 
-**Goal**: Apply a consistent visual style across all generated images/videos.
+Add a `globalStyle` node — it broadcasts style to all AI nodes automatically via the system. No edge connections needed. Set its `style` field to a template slug from `list_style_templates`.
 
-**How**: Add a `globalStyle` node and connect it to AI nodes. Set its `style` field to a style template slug from `list_style_templates`.
+## Build process
 
-The global style node injects style context into all connected AI prompts automatically.
+1. `list_workflows` — check for existing workflows to duplicate
+2. `create_workflow` — new empty workflow
+3. `build_graph` — add ALL nodes and edges in one call (never individual add_node + connect_nodes)
+4. `validate_workflow` — check for issues
+5. Share the workflow URL with the user
 
-## Pattern: Quick start from template
+## Execution strategy
 
-**Steps**:
-
-1. `list_workflow_templates` — browse available pre-built workflows
-2. `create_from_template` — create a copy to customize
-3. `get_workflow` — inspect the graph to understand the pipeline
-4. Modify as needed with `update_node_data` or graph mutations
-
-## Building workflows — ALWAYS use `build_graph`
-
-**NEVER** use `add_node` + `connect_nodes` individually. ALWAYS use `build_graph` — it's atomic, faster (1 call vs many), and uses `tempId` references so you don't need real node IDs. Nodes are auto-positioned in a clean DAG layout when positions are omitted.
-
-```
-build_graph({
-  workflowId: "...",
-  addNodes: [
-    { tempId: "t1", type: "textInput", data: { text: "A cat playing piano" } },
-    { tempId: "t2", type: "textAI", data: { model: "gemini-2.5-flash", template: "enhance-prompt" } },
-    { tempId: "t3", type: "imageAI", data: { model: "imagen-3" } },
-    { tempId: "t4", type: "videoAI", data: { model: "kling-2.0" } }
-  ],
-  addEdges: [
-    { sourceNode: "t1", sourceHandle: "text", targetNode: "t2", targetHandle: "text" },
-    { sourceNode: "t2", sourceHandle: "text", targetNode: "t3", targetHandle: "text" },
-    { sourceNode: "t3", sourceHandle: "image", targetNode: "t4", targetHandle: "image" }
-  ]
-})
-```
-
-**Important**: `tempId` values are only for referencing within the same `build_graph` call. The server returns the real node IDs. Handle IDs are the raw names from node definitions — see [nodes.md](nodes.md) for the full reference.
-
-## Node positioning
-
-`build_graph` auto-layouts nodes when positions are omitted — nodes are arranged in columns based on edge connectivity (left-to-right DAG layout). Branching pipelines stack vertically within the same column. You don't need to specify positions unless you want precise control.
+- **Iterating**: Use `run_node` one at a time. Review image results before generating video. Regenerate individual nodes as needed.
+- **Production run**: Use `run_workflow` with `userInputs` for the full pipeline.
+- **Cost check**: Call `get_credit_balance` before video generation. Video is expensive — inform the user.
 
 ## Validation checklist
 
 Before telling the user a workflow is ready:
 
-1. Call `validate_workflow` to check for issues
-2. Verify all AI nodes have models set (use defaults if not specified)
-3. Verify required inputs are connected (check with `get_node_type_info`)
-4. Confirm input nodes have content or are clearly meant for user input at run time
+1. `validate_workflow` — fix any reported issues
+2. All AI nodes have models set
+3. All required inputs are connected (check with `get_node_type_info`)
+4. Input nodes have content or are clearly for user input at run time
+5. No narration/script Text AI connected to Video AI (common mistake)

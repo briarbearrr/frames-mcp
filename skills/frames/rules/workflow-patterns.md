@@ -100,6 +100,10 @@ build_graph({
 
 **Important**: The `tempId` values are only for referencing within the same `build_graph` call. The server returns the real node IDs.
 
+## Node positioning
+
+`build_graph` auto-layouts nodes when positions are omitted — nodes are arranged in columns based on edge connectivity (left-to-right DAG layout). Branching pipelines stack vertically within the same column. You don't need to specify positions unless you want precise control.
+
 ## Validation checklist
 
 Before telling the user a workflow is ready:

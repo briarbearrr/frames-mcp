@@ -30,9 +30,18 @@ run_node({
 ```
 run_workflow({
   workflowId: "...",
-  userInputs: { "node-id-1": { text: "My input text" } }  // optional
+  userInputs: {
+    "text-input-node-id": "My input text",           // shorthand — auto-wraps to { text: "..." }
+    "image-input-node-id": ["https://example.com/img.jpg"]  // shorthand for imageInput
+  }
 })
 ```
+
+**userInputs format**: Keyed by input node ID. Supports two formats:
+- **Shorthand**: `"nodeId": "value"` — auto-wraps based on node type (`textInput` → `{ text: value }`, `imageInput` → `{ imageUrls: value }`, `videoInput` → `{ videoUrl: value }`)
+- **Full form**: `"nodeId": { "text": "...", "otherField": "..." }` — passed as-is to the node data
+
+**Important**: Input nodes (textInput, imageInput, videoInput) must have data — either set via `update_node_data` before running, or passed via `userInputs`. The tool validates this and returns an error listing empty input nodes.
 
 - Executes all nodes in topological order (respects dependencies)
 - Returns a `productRunId` — use `get_node_outputs` to retrieve results

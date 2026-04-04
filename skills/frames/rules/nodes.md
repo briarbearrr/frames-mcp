@@ -78,7 +78,7 @@ Each node has configurable fields set via `update_node_data` or in `build_graph`
 
 Common fields:
 
-- **AI nodes**: `model` (model ID), `template` (prompt template slug or "custom"), `customPrompt` (when template is "custom"), `style` (style template slug)
+- **AI nodes**: `model` (model ID), `promptTemplate` (prompt template slug or "custom"), `customPrompt` (when promptTemplate is "custom"), `style` (style template slug)
 - **Text Input**: `text` (the content), `label` (display name)
 - **Image Input**: `url` (image URL — auto-normalized to internal format), `label` (display name)
 - **Video Input**: `url` (video URL), `label` (display name)

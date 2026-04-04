@@ -22,13 +22,17 @@ Don't try to make `textAI` output multiple scenes by hacking the prompt.
 
 ## Generate a start frame for video
 
-`videoAI` requires a text prompt and optionally accepts a start frame image. While you can run videoAI with just text, providing a start frame image produces significantly better results — it gives the model a clear visual anchor.
+`videoAI` requires a text prompt and optionally accepts a start frame image. Providing a start frame produces significantly better results — it gives the model a clear visual anchor.
+
+**Important**: The startFrame is literally the first frame of the generated video. Never use a raw product photo or unprocessed reference image as startFrame — the video will start with that exact image, which looks unnatural. Always route through `imageAI` first to generate a styled scene, then use that as the startFrame.
 
 ```
-textAI → imageAI → videoAI (startFrame)    (best results)
-textAI → videoAI                            (works, but less control)
-imageInput → videoAI (startFrame)           (user-provided frame)
+textAI → imageAI → videoAI (startFrame)                       (best — AI-generated scene)
+imageInput → imageAI (reference) → videoAI (startFrame)        (product photo → styled scene → video)
+textAI → videoAI                                               (works, but less visual control)
 ```
+
+**Caution**: `imageInput → videoAI (startFrame)` makes the raw photo the literal first frame. This is valid when the user explicitly wants that (e.g., "animate this exact image"). For product/marketing use cases, ask first — default to routing through `imageAI` to generate a styled scene.
 
 videoAI also accepts `endFrame`, `referenceImages`, and `videoReference` inputs depending on the model. Use `get_node_type_info({ nodeType: "videoAI" })` for full handle details.
 
@@ -89,7 +93,7 @@ Use `build_graph` for new workflows (atomic, supports `tempId`). Use individual 
 
 ## Use prompt templates, not custom prompts
 
-Call `list_prompt_templates` and use the right template for the use case. Only set `template: "custom"` when the user provides their own prompt.
+Call `list_prompt_templates` and use the right template for the use case. Only set `promptTemplate: "custom"` when the user provides their own prompt.
 
 ## Validate before sharing
 

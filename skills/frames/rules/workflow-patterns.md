@@ -12,22 +12,22 @@
 
 Each node type has a specific role. Connect them based on what data flows where:
 
-| Source node             | Output                   | Connects to       | Target handle | Why                                                       |
-| ----------------------- | ------------------------ | ----------------- | ------------- | --------------------------------------------------------- |
-| `textInput`             | `text`                   | `textAI`          | `text`        | Raw input → prompt enrichment                             |
-| `textInput`             | `text`                   | `websiteResearch` | —             | websiteResearch has no inputs; URL is configured via data |
-| `textAI` (video prompt) | `text`                   | `videoAI`         | `text`        | Enriched prompt → video generation                        |
-| `textAI` (image prompt) | `text`                   | `imageAI`         | `text`        | Enriched prompt → image generation                        |
-| `textAI` (narration)    | `text`                   | `voiceAI`         | `text`        | Script → voice synthesis                                  |
+| Source node             | Output                   | Connects to       | Target handle | Why                                                                                                                   |
+| ----------------------- | ------------------------ | ----------------- | ------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `textInput`             | `text`                   | `textAI`          | `text`        | Raw input → prompt enrichment                                                                                         |
+| `textInput`             | `text`                   | `websiteResearch` | —             | websiteResearch has no inputs; URL is configured via data                                                             |
+| `textAI` (video prompt) | `text`                   | `videoAI`         | `text`        | Enriched prompt → video generation                                                                                    |
+| `textAI` (image prompt) | `text`                   | `imageAI`         | `text`        | Enriched prompt → image generation                                                                                    |
+| `textAI` (narration)    | `text`                   | `voiceAI`         | `text`        | Script → voice synthesis                                                                                              |
 | `imageAI`               | `image`                  | `videoAI`         | `startFrame`  | Start frame → video (much better results). **Not all models/modes accept this** — check with `get_model_capabilities` |
-| `videoAI`               | `video`                  | `videoCaptions`   | `video`       | Video → add captions                                      |
-| `voiceAI`               | `audio`                  | `videoCaptions`   | `audio`       | Voiceover → burn into captioned video                     |
-| `websiteResearch`       | `brandDocument`          | `textAI`          | `text`        | Brand context → prompt enrichment                         |
-| `websiteResearch`       | `colorPalette`           | `textAI`          | `text`        | Color info → style-aware prompts                          |
-| `websiteResearch`       | `screenshots`            | `imageAI`         | `image`       | Website visual → reference image                          |
-| `storyAI`               | `scene_1`–`scene_5`      | `imageAI`         | `text`        | Scene prompt → image per scene                            |
-| `imageAI` #1            | `image`                  | `imageAI` #2      | `image`       | Reference chain for character consistency                 |
-| `videoAI`               | `firstFrame`/`lastFrame` | `videoAI` (next)  | `startFrame`  | Scene continuity across clips                             |
+| `videoAI`               | `video`                  | `videoCaptions`   | `video`       | Video → add captions                                                                                                  |
+| `voiceAI`               | `audio`                  | `videoCaptions`   | `audio`       | Voiceover → burn into captioned video                                                                                 |
+| `websiteResearch`       | `brandDocument`          | `textAI`          | `text`        | Brand context → prompt enrichment                                                                                     |
+| `websiteResearch`       | `colorPalette`           | `textAI`          | `text`        | Color info → style-aware prompts                                                                                      |
+| `websiteResearch`       | `screenshots`            | `imageAI`         | `image`       | Website visual → reference image                                                                                      |
+| `storyAI`               | `scene_1`–`scene_5`      | `imageAI`         | `text`        | Scene prompt → image per scene                                                                                        |
+| `imageAI` #1            | `image`                  | `imageAI` #2      | `image`       | Reference chain for character consistency                                                                             |
+| `videoAI`               | `firstFrame`/`lastFrame` | `videoAI` (next)  | `startFrame`  | Scene continuity across clips                                                                                         |
 
 **Anti-patterns** (never do these):
 
@@ -35,6 +35,7 @@ Each node type has a specific role. Connect them based on what data flows where:
 - `textAI` (narration) → `videoAI` (narration text is not a video prompt)
 - `voiceAI` → `videoAI` (audio doesn't connect to video generation)
 - `textInput` → `voiceAI` (raw text sounds unnatural — enrich first)
+- `imageInput` → `videoAI` (startFrame) without asking — the raw photo becomes the literal first frame. Ask the user if they want the exact image as frame 1, or a styled scene. Default to routing through `imageAI` for product/marketing use cases.
 
 ## Pattern: Simple text-to-video
 
@@ -49,7 +50,7 @@ build_graph({
   workflowId: "...",
   addNodes: [
     { tempId: "t1", type: "textInput", data: { text: "A cat playing piano" } },
-    { tempId: "t2", type: "textAI", data: { template: "video" } },
+    { tempId: "t2", type: "textAI", data: { promptTemplate: "video" } },
     { tempId: "t3", type: "imageAI" },
     { tempId: "t4", type: "videoAI" }
   ],
@@ -79,8 +80,8 @@ build_graph({
   workflowId: "...",
   addNodes: [
     { tempId: "input", type: "textInput", data: { text: "..." } },
-    { tempId: "vidPrompt", type: "textAI", data: { template: "video" } },
-    { tempId: "narration", type: "textAI", data: { template: "narration" } },
+    { tempId: "vidPrompt", type: "textAI", data: { promptTemplate: "video" } },
+    { tempId: "narration", type: "textAI", data: { promptTemplate: "narration" } },
     { tempId: "img", type: "imageAI" },
     { tempId: "video", type: "videoAI", data: { aspectRatio: "9:16" } },
     { tempId: "voice", type: "voiceAI", data: { presetVoiceId: "..." } },
@@ -91,6 +92,46 @@ build_graph({
     { sourceNode: "input", sourceHandle: "text", targetNode: "narration", targetHandle: "text" },
     { sourceNode: "vidPrompt", sourceHandle: "text", targetNode: "img", targetHandle: "text" },
     { sourceNode: "vidPrompt", sourceHandle: "text", targetNode: "video", targetHandle: "text" },
+    { sourceNode: "img", sourceHandle: "image", targetNode: "video", targetHandle: "startFrame" },
+    { sourceNode: "narration", sourceHandle: "text", targetNode: "voice", targetHandle: "text" },
+    { sourceNode: "video", sourceHandle: "video", targetNode: "captions", targetHandle: "video" },
+    { sourceNode: "voice", sourceHandle: "audio", targetNode: "captions", targetHandle: "audio" }
+  ]
+})
+```
+
+## Pattern: Product photo → marketing video
+
+When the user provides a product image and wants a marketing video, route the photo through `imageAI` as a reference to generate a styled scene — never use raw product photos directly as videoAI startFrame (the video would literally start with the raw photo).
+
+```
+imageInput (product photo) ──image──→ imageAI (generate styled scene) ──→ videoAI (startFrame)
+                                         ↑                                    ↑
+textInput ──→ textAI #1 (video prompt) ──┘────────────────────────────────────┘
+    │                                                                              → videoCaptions
+    └────→ textAI #2 (narration) ──→ voiceAI ──────────────────────────────────────→     ↑
+                                                                              videoAI ───┘
+```
+
+```
+build_graph({
+  workflowId: "...",
+  addNodes: [
+    { tempId: "input", type: "textInput", data: { text: "..." } },
+    { tempId: "photo", type: "imageInput", data: { url: "https://..." } },
+    { tempId: "vidPrompt", type: "textAI", data: { promptTemplate: "video" } },
+    { tempId: "narration", type: "textAI", data: { promptTemplate: "narration" } },
+    { tempId: "img", type: "imageAI", data: { aspectRatio: "9:16" } },
+    { tempId: "video", type: "videoAI", data: { aspectRatio: "9:16" } },
+    { tempId: "voice", type: "voiceAI", data: { presetVoiceId: "..." } },
+    { tempId: "captions", type: "videoCaptions" }
+  ],
+  addEdges: [
+    { sourceNode: "input", sourceHandle: "text", targetNode: "vidPrompt", targetHandle: "text" },
+    { sourceNode: "input", sourceHandle: "text", targetNode: "narration", targetHandle: "text" },
+    { sourceNode: "vidPrompt", sourceHandle: "text", targetNode: "img", targetHandle: "text" },
+    { sourceNode: "vidPrompt", sourceHandle: "text", targetNode: "video", targetHandle: "text" },
+    { sourceNode: "photo", sourceHandle: "image", targetNode: "img", targetHandle: "image" },
     { sourceNode: "img", sourceHandle: "image", targetNode: "video", targetHandle: "startFrame" },
     { sourceNode: "narration", sourceHandle: "text", targetNode: "voice", targetHandle: "text" },
     { sourceNode: "video", sourceHandle: "video", targetNode: "captions", targetHandle: "video" },
@@ -145,8 +186,9 @@ Add a `globalStyle` node — it broadcasts style to all AI nodes automatically v
 1. `list_workflows` — check for existing workflows to duplicate
 2. `create_workflow` — new empty workflow
 3. `build_graph` — add ALL nodes and edges in one call (never individual add_node + connect_nodes)
-4. `validate_workflow` — check for issues
-5. Share the workflow URL with the user
+4. `set_product_inputs` — mark input nodes (textInput, imageInput, videoInput) as `product_inputs` and the final output node (e.g., videoCaptions, videoAI, imageAI) as `product_outputs`. This makes the workflow ready for `run_workflow` with `userInputs` and for publishing as a product API.
+5. `validate_workflow` — check for issues
+6. Share the workflow URL with the user
 
 ## Execution strategy
 
@@ -163,3 +205,4 @@ Before telling the user a workflow is ready:
 3. All required inputs are connected (check with `get_node_type_info`)
 4. Input nodes have content or are clearly for user input at run time
 5. No narration/script Text AI connected to Video AI (common mistake)
+6. `set_product_inputs` was called — input nodes marked as product inputs, final output node marked as product output

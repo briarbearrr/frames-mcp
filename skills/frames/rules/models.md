@@ -65,7 +65,7 @@ When the user asks about pricing:
 AI nodes use prompt templates to guide their behavior. Templates are server-side — the node sends the template slug, and the server resolves it.
 
 - Use `list_prompt_templates({ nodeType: "textAI" })` to see available templates
-- Set `template: "custom"` + `customPrompt: "..."` for user-written prompts
+- Set `promptTemplate: "custom"` + `customPrompt: "..."` for user-written prompts
 - Templates are curated for specific use cases (scene description, script writing, etc.)
 
 ## Style templates

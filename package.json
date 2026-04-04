@@ -1,6 +1,6 @@
 {
   "name": "frames-mcp",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Install the Frames MCP server and agent skills for Claude Code",
   "bin": {
     "frames-mcp": "setup.mjs"

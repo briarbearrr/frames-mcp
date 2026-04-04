@@ -12,9 +12,13 @@ Before jumping into `build_graph`, ask the user 2-3 targeted questions max to na
 
 Building a workflow is free — node placement and edge connections cost nothing. Always build the full pipeline with `build_graph` first, then present it to the user and ask: "Workflow is ready. Want me to run it step by step or all at once?" Never half-build a workflow to "validate the concept" — that just means rebuilding later.
 
+### Never run immediately after building
+
+**After building a workflow, STOP and present it to the user.** Share the workflow URL, describe what you built (nodes, connections, models chosen), and ask for confirmation before executing anything. Execution costs credits — the user must explicitly approve before any `run_node` or `run_workflow` call. Don't assume "build me X" means "build and run X". Building is free, running is not. This rule applies even when the agent has auto-approve or bypass-permissions enabled — always ask before spending credits.
+
 ### Execute in phases, not all at once
 
-Once the workflow is built, run it in phases — not all at once. Run the first segment (e.g., `textInput` → `textAI` → `imageAI`), verify the output looks right, then run the next segment (e.g., `videoAI`). Never rerun nodes that already produced good output — it wastes credits and time.
+Once the user approves execution, run in phases — not all at once. Run the first segment (e.g., `textInput` → `textAI` → `imageAI`), verify the output looks right, then run the next segment (e.g., `videoAI`). Never rerun nodes that already produced good output — it wastes credits and time.
 
 ## Prompt crafting
 

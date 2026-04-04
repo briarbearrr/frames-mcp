@@ -20,7 +20,7 @@ Once the workflow is built, run it in phases — not all at once. Run the first 
 
 ### Separate motion from subject in video prompts
 
-When writing or enriching prompts for video generation, describe the subject/scene separately from camera movement and action. Good: "A golden retriever on a beach at sunset. Camera slowly dollies forward as the dog runs toward the waves." Bad: "A golden retriever running on a beach at sunset with the camera moving forward." This is especially important with image-to-video where the start frame already defines the subject — the prompt should focus on what *changes*.
+When writing or enriching prompts for video generation, describe the subject/scene separately from camera movement and action. Good: "A golden retriever on a beach at sunset. Camera slowly dollies forward as the dog runs toward the waves." Bad: "A golden retriever running on a beach at sunset with the camera moving forward." This is especially important with image-to-video where the start frame already defines the subject — the prompt should focus on what _changes_.
 
 ### Don't over-describe images
 
@@ -112,18 +112,29 @@ A common mistake: trying to connect `voiceAI` output to `videoAI`. Video generat
 
 ## Match voice and video duration
 
-When a workflow has both voiceover and video, match their durations. A 5-second video with a 30-second narration doesn't work. Use ~2.5 words per second as a guideline:
+**Video clips are 3-15 seconds each.** Any narration longer than ~15 seconds requires a multi-shot workflow — there is no single video node that produces a 1-minute clip.
 
-- 5-second video ≈ 12 words narration
-- 10-second video ≈ 25 words narration
+Use ~2.5 words per second as a guideline:
 
-Which asset leads depends on the user's intent: if they start with a script, the video duration should match the voice length. If they start with a video concept, guide the textAI writing the narration to target an appropriate word count for the video duration.
+| Video duration | Max narration |
+|---------------|---------------|
+| 5 seconds     | ~12 words     |
+| 10 seconds    | ~25 words     |
+| 15 seconds    | ~37 words     |
+
+**Single-shot workflows** (one videoAI node): The narration textAI must have `maxOutputChars` set low enough to produce a short script matching the video duration. For a 5-second video ad, the script should be 1-2 punchy sentences — not a paragraph.
+
+**Multi-shot workflows** (narration > 15 seconds): Use `storyAI` to split into scenes, each with its own `imageAI` → `videoAI` chain (3-15s per clip), then `videoMerge` to combine. A 60-second narration needs ~4-12 video clips. Never pair a long script with a single short video — it's unusable.
+
+**Planning the duration budget**: Before building, estimate total narration length from the user's intent. If they want a "short ad" → 5-10s single shot. If they want a "product story" or "explainer" → multi-shot with storyAI. If unclear, ask: "How long should the final video be?" This determines the entire workflow shape.
+
+Which asset leads depends on the user's intent: if they start with a script, the video count and duration should match the voice length. If they start with a video concept, constrain the narration to fit the video duration.
 
 ## Use globalStyle for visual consistency
 
 When a workflow generates 2 or more images or videos, add a `globalStyle` node to the workflow. It broadcasts style to all AI nodes automatically via the system — no edge connections needed. Just add the node and set its `style` field to a template slug from `list_style_templates`.
 
-Without globalStyle, each generation may have a different visual look. When a workflow has multiple imageAI or videoAI nodes, use consistent style descriptors across all of them. globalStyle is the best mechanism for this, but even without it, keep phrasing consistent (e.g., always "cinematic, warm lighting, 35mm film grain" — not "warm tones" in one node and "golden hour lighting" in another). Intentional style variation across nodes is fine when the user wants it — this is about avoiding *accidental* inconsistency.
+Without globalStyle, each generation may have a different visual look. When a workflow has multiple imageAI or videoAI nodes, use consistent style descriptors across all of them. globalStyle is the best mechanism for this, but even without it, keep phrasing consistent (e.g., always "cinematic, warm lighting, 35mm film grain" — not "warm tones" in one node and "golden hour lighting" in another). Intentional style variation across nodes is fine when the user wants it — this is about avoiding _accidental_ inconsistency.
 
 ## Use research nodes for brand context
 

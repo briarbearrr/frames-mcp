@@ -43,7 +43,7 @@ Used by `voiceAI` nodes.
 
 - **ElevenLabs** — high-quality text-to-speech
 - Use `list_voices` to browse available voices with previews
-- Key settings: `voiceId`, `stability`, `similarityBoost`
+- Key settings: `presetVoiceId` (voice ID from `list_voices`), `stability`, `similarityBoost`
 
 **When to recommend**: Let the user pick a voice from `list_voices` — accent and tone are personal preferences.
 

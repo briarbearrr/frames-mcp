@@ -81,7 +81,7 @@ Common fields:
 - **AI nodes**: `model` (model ID), `template` (prompt template slug or "custom"), `customPrompt` (when template is "custom"), `style` (style template slug)
 - **Text Input**: `text` (the content), `label` (display name)
 - **Image/Video Input**: `url` (media URL), `label` (display name)
-- **Voice AI**: `model`, `voiceId` (from `list_voices`), `stability`, `similarityBoost`
+- **Voice AI**: `model`, `presetVoiceId` (voice ID from `list_voices`), `stability`, `similarityBoost`
 - **Video AI**: `model`, `mode` (standard/pro), `duration`, `aspectRatio`
 
 Use `get_node_type_info` for the exact field schema of any node if you need to check constraints before setting values.

@@ -80,7 +80,8 @@ Common fields:
 
 - **AI nodes**: `model` (model ID), `template` (prompt template slug or "custom"), `customPrompt` (when template is "custom"), `style` (style template slug)
 - **Text Input**: `text` (the content), `label` (display name)
-- **Image/Video Input**: `url` (media URL), `label` (display name)
+- **Image Input**: `url` (image URL — auto-normalized to internal format), `label` (display name)
+- **Video Input**: `url` (video URL), `label` (display name)
 - **Voice AI**: `model`, `presetVoiceId` (voice ID from `list_voices`), `stability`, `similarityBoost`
 - **Video AI**: `model`, `mode` (standard/pro), `duration`, `aspectRatio`
 

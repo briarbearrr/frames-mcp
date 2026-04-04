@@ -33,6 +33,7 @@ Used by `videoAI` nodes. These are async — execution takes minutes.
 - Standard mode is faster/cheaper, Pro mode is higher quality
 - Duration range is model-dependent (3–15s) — call `get_model_capabilities` to check supported durations
 - **Not all models/modes accept image inputs (startFrame)**. Always call `get_model_capabilities` before connecting `imageAI → videoAI`. If the model doesn't support `startFrame`, either pick a different model/mode or skip the image-to-video connection.
+- **Capabilities can be mode-dependent**. The static `inputs.startFrame: true` flag means the model _can_ support it — but actual availability may depend on `mode`/`resolution`. Check `constraintSummary` in the `get_model_capabilities` response. Example: **Kling v2.5 Turbo** only supports start/end frames in **PRO mode (1080p)** — at standard resolution they're disabled.
 - Use `list_models({ category: "video" })` for current options
 
 **When to recommend**: Latest Kling version in pro mode when using start frames. Veo for built-in audio. Always warn the user that video generation takes a few minutes.

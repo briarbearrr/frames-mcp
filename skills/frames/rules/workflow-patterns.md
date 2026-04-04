@@ -6,7 +6,8 @@
 2. **ALWAYS enrich prompts** — never connect `textInput` directly to `imageAI` or `videoAI`. Route through `textAI` with a prompt template first. This is the single biggest quality improvement.
 3. **Image first, then video** — video generation is slow (1–4 min) and expensive. Generate an image first, iterate until it looks right, then use it as a start frame for video. Don't skip straight to video.
 4. **One Text AI per purpose** — when a workflow needs both a video prompt AND a narration script, use TWO separate `textAI` nodes. Each feeds ONLY its downstream node. Never connect narration to video or vice versa.
-5. **Reuse before building** — `list_workflows` first, `duplicate_workflow` if a match exists.
+5. **Reuse before building** — always `list_workflows` first, even when the user says "build me X". If a workflow with a similar structure exists, `duplicate_workflow` and modify it — faster than building from zero. After duplicating, always update the input nodes with new content before running — the old inputs are still baked in.
+6. **voiceAI never connects to videoAI** — video generation doesn't accept audio. To combine voice with video, both feed into `videoCaptions`.
 
 ## Connection logic
 
@@ -51,8 +52,8 @@ build_graph({
   addNodes: [
     { tempId: "t1", type: "textInput", data: { text: "A cat playing piano" } },
     { tempId: "t2", type: "textAI", data: { promptTemplate: "video" } },
-    { tempId: "t3", type: "imageAI" },
-    { tempId: "t4", type: "videoAI" }
+    { tempId: "t3", type: "imageAI", data: { promptTemplate: "social-visual" } },
+    { tempId: "t4", type: "videoAI", data: { promptTemplate: "short-form" } }
   ],
   addEdges: [
     { sourceNode: "t1", sourceHandle: "text", targetNode: "t2", targetHandle: "text" },
@@ -82,8 +83,8 @@ build_graph({
     { tempId: "input", type: "textInput", data: { text: "..." } },
     { tempId: "vidPrompt", type: "textAI", data: { promptTemplate: "video" } },
     { tempId: "narration", type: "textAI", data: { promptTemplate: "narration" } },
-    { tempId: "img", type: "imageAI" },
-    { tempId: "video", type: "videoAI", data: { aspectRatio: "9:16" } },
+    { tempId: "img", type: "imageAI", data: { promptTemplate: "social-visual" } },
+    { tempId: "video", type: "videoAI", data: { aspectRatio: "9:16", promptTemplate: "short-form" } },
     { tempId: "voice", type: "voiceAI", data: { presetVoiceId: "..." } },
     { tempId: "captions", type: "videoCaptions" }
   ],
@@ -121,8 +122,8 @@ build_graph({
     { tempId: "photo", type: "imageInput", data: { url: "https://..." } },
     { tempId: "vidPrompt", type: "textAI", data: { promptTemplate: "video" } },
     { tempId: "narration", type: "textAI", data: { promptTemplate: "narration" } },
-    { tempId: "img", type: "imageAI", data: { aspectRatio: "9:16" } },
-    { tempId: "video", type: "videoAI", data: { aspectRatio: "9:16" } },
+    { tempId: "img", type: "imageAI", data: { aspectRatio: "9:16", promptTemplate: "social-visual" } },
+    { tempId: "video", type: "videoAI", data: { aspectRatio: "9:16", promptTemplate: "marketing-ad" } },
     { tempId: "voice", type: "voiceAI", data: { presetVoiceId: "..." } },
     { tempId: "captions", type: "videoCaptions" }
   ],
@@ -181,6 +182,14 @@ Use `tiktokResearch` to analyze a trending video, then create content inspired b
 
 Add a `globalStyle` node — it broadcasts style to all AI nodes automatically via the system. No edge connections needed. Set its `style` field to a template slug from `list_style_templates`.
 
+## Pattern: Batch content with iterator
+
+When the user wants to generate multiple pieces of content from a list (e.g., "make 5 product videos for these 5 products"), use `iterator` + `closeIterator` instead of duplicating the same nodes multiple times. Iterator splits an array into individual items, runs the loop body per item, and closeIterator collects the results. The workflow stays clean and handles 3 items or 30 items with the same graph.
+
+```
+textInput (JSON array) → iterator → textAI → imageAI → videoAI → closeIterator
+```
+
 ## Build process
 
 1. `list_workflows` — check for existing workflows to duplicate
@@ -205,4 +214,5 @@ Before telling the user a workflow is ready:
 3. All required inputs are connected (check with `get_node_type_info`)
 4. Input nodes have content or are clearly for user input at run time
 5. No narration/script Text AI connected to Video AI (common mistake)
-6. `set_product_inputs` was called — input nodes marked as product inputs, final output node marked as product output
+6. Text AI nodes feeding downstream AI have `maxOutputChars` set within the downstream model's prompt limit (Imagen 4 = 1400, Kling/Veo = 9500, voice = 4500)
+7. `set_product_inputs` was called — input nodes marked as product inputs, final output node marked as product output

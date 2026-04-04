@@ -47,6 +47,36 @@ Used by `voiceAI` nodes.
 
 **When to recommend**: Let the user pick a voice from `list_voices` — accent and tone are personal preferences.
 
+## Prompt length limits
+
+Each downstream AI model has a maximum prompt/text input size. When Text AI output feeds into another AI node, the output must fit within that model's limit — otherwise execution fails.
+
+### Limits by category
+
+| Category | Model                | Token limit   | Effective char limit |
+| -------- | -------------------- | ------------- | -------------------- |
+| Image    | Imagen 4 (all tiers) | 480 tokens    | ~1,400 chars         |
+| Image    | Nanobanana           | 32,768 tokens | ~130,500 chars       |
+| Image    | Nanobanana Pro       | 65,536 tokens | ~261,600 chars       |
+| Image    | Kling (all)          | 2,500 tokens  | ~9,500 chars         |
+| Video    | All models           | 2,500 tokens  | ~9,500 chars         |
+| Voice    | Most ElevenLabs      | 5,000 chars   | ~4,500 chars         |
+| Voice    | Flash v2.5           | 40,000 chars  | ~39,500 chars        |
+
+_Effective limit = raw limit minus ~500 chars for system prompt overhead. Conversion: ~4 chars per token._
+
+### Setting maxOutputChars on Text AI
+
+When connecting Text AI to a downstream AI node, **always** set `maxOutputChars` based on the downstream model's limit:
+
+1. Check the downstream model's limit via `get_model_capabilities`
+2. Set `maxOutputChars` to the effective char limit from the table above
+3. When feeding multiple downstream nodes, use the **lowest** limit
+
+**Critical**: Imagen 4 has a very low limit (~1,400 chars). When Text AI feeds Imagen 4, set `maxOutputChars: 1400`.
+
+Video models and Kling image models accept up to ~9,500 chars — the default `maxOutputChars: 2000` is safe. Voice models accept ~4,500 chars for most models.
+
 ## Choosing models
 
 When the user doesn't specify a model:

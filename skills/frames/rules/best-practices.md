@@ -160,13 +160,31 @@ tiktokResearch ──content──→ textAI (hook-style prompt) → videoAI
 
 ## Execution
 
+### Ask before running: phased or straight through
+
+When the user says "run it" (or similar), and the workflow contains **any** `videoAI` node or any single node costing more than ~15 credits, **ask first** which execution mode they want — do NOT default to `run_workflow`.
+
+Offer exactly two options:
+
+> **Phased** — I run the cheap/fast nodes first (text, images, voice), show you the outputs, and wait for your approval before running the expensive video generation. Best for iteration — you can regenerate images if they don't look right without wasting video credits.
+>
+> **Straight through** — I run everything end-to-end and hand you the final video. Fastest if you trust the pipeline.
+
+If the user picks **phased**: loop `run_node` per node in the pre-video segment (textAI → imageAI → voiceAI chains), then stop and `get_node_outputs` on the images, present them, ask for approval, then `run_node` the videoAI + downstream nodes.
+
+If the user picks **straight through**: call `run_workflow` once.
+
+For cheap workflows (no videoAI, total under ~15 credits), skip the ask and just run.
+
+This is not optional. Do not assume the user wants one or the other — ask.
+
 ### Check outputs before continuing downstream
 
 After running a node, use `get_node_outputs` to review what was produced before running the next node in the chain. This is the agent's responsibility — check internally and only flag issues to the user. If the output looks fine, keep going without asking. Don't force the user to review every step. But if something looks off (wrong style, garbled text, bad composition), stop and surface it before wasting credits downstream.
 
 ### Run nodes individually when iterating
 
-Prefer running nodes one at a time with `run_node` over `run_workflow` when the user is iterating. This gives control over each step — they can review and regenerate individual nodes without re-running the entire pipeline. Only use `run_workflow` for final production runs of a validated workflow.
+When the user is iterating on a workflow (refining prompts, changing models, trying variations), use `run_node` per node instead of `run_workflow`. Gives control over each step — regenerate individual nodes without re-running the whole pipeline. `run_workflow` is for validated, final production runs where the user has already approved the expensive-node cost (see "Ask before running" above).
 
 ### Only rerun the node that needs fixing
 
@@ -177,6 +195,18 @@ When the user asks to "fix" or "improve" a result (e.g., "the image is too dark"
 Video is expensive. Call `get_credit_balance` and `get_pricing({ operation: "video-generation" })` before running videoAI nodes. Tell the user the cost and ask for confirmation.
 
 ## Workflow hygiene
+
+### Workflow name rules
+
+Workflow names must match `^[a-zA-Z0-9\s\-_()'.!?,&]+$` and be **50 characters or less**. Allowed: letters, numbers, spaces, and `- _ ( ) ' . ! ? , &`. Anything else (`:` `/` `\` `[` `]` `|` `#` `@` `*` emojis, etc.) returns a `VALIDATION_ERROR`.
+
+Common mistakes that break:
+
+- Colons: "Demo: Brand Video" → use "Demo - Brand Video"
+- Slashes: "Marketing/Social" → use "Marketing - Social"
+- Emojis, hashtags, pipes, brackets
+
+When creating or renaming workflows via `create_workflow` / `rename_workflow`, sanitize the name first. If a user-suggested name contains disallowed characters, pick the closest safe substitute silently (don't ask — just do it and mention the swap in your summary).
 
 ### Name nodes descriptively
 
@@ -204,7 +234,13 @@ After `duplicate_workflow`, always review and update the input nodes (`textInput
 
 ## Use build_graph over individual calls
 
-Use `build_graph` for new workflows (atomic, supports `tempId`). Use individual `add_node`/`connect_nodes` only for incremental edits.
+Use `build_graph` for adding nodes. Use individual `add_node`/`connect_nodes` only for single-node incremental edits to an already-built workflow (e.g., inserting one new node into an existing chain).
+
+**Why this matters for layout**: `add_node` places each new node at `(maxX + 200, avgY)` — so repeated calls produce a straight horizontal line with all nodes at the same Y. `build_graph` runs a topological column layout (groups nodes by depth, stacks per column) that produces a proper DAG. If you build a workflow with sequential `add_node` calls, it will look like a flat line on the canvas and the user will have to reorganize it manually.
+
+**Phased construction is fine** — you can call `build_graph` multiple times across a session (e.g., build the input+enrichment layer first, review with the user, then build the generation layer in a second call). Each `build_graph` call auto-appends its new nodes to the right of existing ones with a clean column layout. What's NOT fine is substituting a series of `add_node` + `connect_nodes` calls for one `build_graph` call that would have added the same nodes at once.
+
+**Rule**: if you're adding 2+ nodes as one logical group, they MUST go through a single `build_graph` call. Multiple `build_graph` calls for separate phases are fine.
 
 ## Check prompt templates first
 

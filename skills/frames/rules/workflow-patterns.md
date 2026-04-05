@@ -153,6 +153,8 @@ websiteResearch ──brandDocument──→ textAI #1 (video prompt) ──→ 
 
 `websiteResearch` has NO input sockets — the URL is configured via `update_node_data({ data: { url: "https://..." } })`. It outputs `brandDocument` (text analysis), `colorPalette` (colors), and `screenshots` (images).
 
+**Provider selection**: `websiteResearch` has a `provider` field (default `firecrawl`). Set `provider: "standard"` when the user wants to avoid spending Firecrawl credits — it uses free fetch+cheerio, works on server-rendered marketing sites, but skips screenshots. If the workflow downstream uses the `screenshots` output, stay on `firecrawl`. If Firecrawl credits are exhausted, the node returns an actionable error telling the user to switch providers.
+
 ## Pattern: Multi-scene video (storyAI)
 
 For longer content with multiple scenes, use `storyAI` to generate per-scene prompts. Chain image references for character consistency.

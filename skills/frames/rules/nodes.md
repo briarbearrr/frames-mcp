@@ -84,6 +84,7 @@ Common fields:
 - **Video Input**: `url` (video URL), `label` (display name)
 - **Voice AI**: `model`, `presetVoiceId` (voice ID from `list_voices`), `stability`, `similarityBoost`
 - **Video AI**: `model`, `mode` (standard/pro), `duration`, `aspectRatio`
+- **Website Research**: `url`, `crawlDepth` (1/2/3), `provider` (`firecrawl` = credits + screenshots + JS rendering, `standard` = free fetch+cheerio, SSR sites only, no screenshots). Default `firecrawl`. If the user wants to avoid spending credits or the site is static HTML, set `provider: "standard"`.
 
 Use `get_node_type_info` for the exact field schema of any node if you need to check constraints before setting values.
 

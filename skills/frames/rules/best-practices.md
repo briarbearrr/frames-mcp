@@ -165,6 +165,42 @@ Use ~2.5 words per second as a guideline:
 
 Which asset leads depends on the user's intent: if they start with a script, the video count and duration should match the voice length. If they start with a video concept, constrain the narration to fit the video duration.
 
+## Per-scene timing budget (critical for sync)
+
+When the user specifies a total duration, **divide it equally across scenes** and enforce that budget on BOTH video and audio per scene. Every scene's video clip duration and narration length must match so audio and visuals stay synchronized.
+
+**Example**: User says "15 second video with 3 scenes":
+- Each scene = 5 seconds
+- Each video clip: set `duration: 5` on each `videoAI` node
+- Each narration chunk: ~12 words per scene (5s × 2.5 words/s)
+- Each `voiceAI` produces ~5 seconds of audio matching its scene's video
+
+**How to implement**:
+
+1. **Divide duration**: `total_duration / scene_count` = per-scene seconds
+2. **Set videoAI duration**: Each `videoAI` node gets `duration` set to the per-scene value (must be within model's supported range — check `get_model_capabilities`)
+3. **Constrain narration per scene**: Each narration `textAI` node's `customPrompt` or prompt template must instruct the LLM to write exactly N words for that scene's audio. Include the timing constraint explicitly: "Write exactly 12 words of narration for this 5-second scene."
+4. **One voiceAI per scene**: In multi-shot workflows, use a separate `voiceAI` node per scene so each audio clip matches its video clip duration. Then feed each `videoAI` + `voiceAI` pair into its own `videoCaptions` node before merging.
+5. **Merge in order**: `videoMerge` combines the captioned clips in scene order
+
+**Multi-shot with per-scene audio sync**:
+
+```
+textInput → storyAI ──scene_1──→ textAI #1 (narration, ~12 words) → voiceAI #1 ──→ videoCaptions #1 ──→ videoMerge
+                │                                                                         ↑
+                │                 textAI #2 (video prompt) → imageAI #1 → videoAI #1 (5s) ┘
+                │
+                ├──scene_2──→ textAI #3 (narration, ~12 words) → voiceAI #2 ──→ videoCaptions #2 ──→ (videoMerge)
+                │                                                                         ↑
+                │                 textAI #4 (video prompt) → imageAI #2 → videoAI #2 (5s) ┘
+                │
+                └──scene_3──→ textAI #5 (narration, ~12 words) → voiceAI #3 ──→ videoCaptions #3 ──→ (videoMerge)
+                                                                                          ↑
+                              textAI #6 (video prompt) → imageAI #3 → videoAI #3 (5s) ────┘
+```
+
+**Key rule**: Never generate one long narration and pair it with multiple short video clips — the audio won't align with what's shown on screen. Each scene's narration must describe what happens in THAT scene's video, and both must be the same duration.
+
 ## Use globalStyle for visual consistency
 
 When a workflow generates 2 or more images or videos, add a `globalStyle` node to the workflow. It broadcasts style to all AI nodes automatically via the system — no edge connections needed. Just add the node and set its `style` field to a template slug from `list_style_templates`.

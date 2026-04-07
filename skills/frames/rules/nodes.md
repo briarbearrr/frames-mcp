@@ -92,6 +92,8 @@ Use `get_node_type_info` for the exact field schema of any node if you need to c
 
 Both input and output handles use the raw ID from node definitions — no suffixes, no transformations. Use `get_node_type_info({ nodeType: "..." })` to see exact IDs for any node.
 
+**Naming convention**: Multi-input composition nodes use **plural** handle names (`videos`, `images`). Single-input nodes use **singular** names (`video`, `text`, `image`). When unsure, call `get_node_type_info` — handle IDs must be exact.
+
 Common handles:
 
 - `textInput`: output `text`
@@ -102,5 +104,7 @@ Common handles:
 - `voiceAI`: output `audio`, input `text`
 - `websiteResearch`: outputs `brandDocument`, `colorPalette`, `screenshots`
 - `videoCaptions`: output `video`, inputs `video`, `audio`
-- `slideshow`: output `video`, inputs vary by config
+- `videoMerge`: outputs `video`, `duration`; input `videos` (plural — accepts up to 10 connections)
+- `videoTrim`: output `video`, input `video`
+- `slideshow`: output `video`, inputs `images` (plural), `audio`
 - `iterator`/`closeIterator`: output `items`/`collected`

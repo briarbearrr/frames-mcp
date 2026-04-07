@@ -16,9 +16,29 @@ Building a workflow is free — node placement and edge connections cost nothing
 
 **After building a workflow, STOP and present it to the user.** Share the workflow URL, describe what you built (nodes, connections, models chosen), and ask for confirmation before executing anything. Execution costs credits — the user must explicitly approve before any `run_node` or `run_workflow` call. Don't assume "build me X" means "build and run X". Building is free, running is not. This rule applies even when the agent has auto-approve or bypass-permissions enabled — always ask before spending credits.
 
-### Always execute node by node
+### Execute in batches, not one-by-one
 
-Once the user approves execution, **always run nodes individually with `run_node`** in dependency order. After each node (or small segment of cheap nodes like `textAI` → `imageAI`), present the output to the user and get their approval before running the next node. Never run the full workflow at once — the user must see and approve each step. Never rerun nodes that already produced good output — it wastes credits and time.
+Once the user approves execution, run nodes in **dependency-ordered batches** using `run_node`. Group cheap/fast nodes (textAI, storyAI, voiceAI) into a single batch — run them all, then present the combined results. Only pause and ask for approval **before expensive nodes** (imageAI, videoAI) or at natural review points.
+
+**Batch strategy:**
+1. Run all text/story/voice nodes in one pass (they're fast and cheap)
+2. Present the text outputs — let the user review scripts/prompts
+3. After approval, run all imageAI nodes in one pass
+4. Present the images — let the user review before committing to video
+5. After approval, run videoAI nodes
+
+Never rerun nodes that already produced good output — it wastes credits and time. Never run the full workflow with `run_workflow` unless explicitly asked.
+
+## Ground everything in user-provided inputs — never hallucinate details
+
+**This is critical.** When the user provides images, text, documents, brand URLs, or any reference material, all generated content must be grounded in those inputs. Never invent brand names, product models, company slogans, visual details, or any specific claims that aren't present in the user's inputs.
+
+- **Images provided?** Connect them as reference images to every AI node that accepts them (`storyAI`, `imageAI`). Describe what's visible in the image — don't guess what brand or model it is.
+- **Text/documents provided?** Extract brand names, product details, and claims only from that text. Don't supplement with invented marketing copy.
+- **Website URL provided?** Use `websiteResearch` to scrape actual brand info. Connect `brandDocument` to text nodes and `screenshots` to image nodes. Use the real brand voice, not a generic one.
+- **Nothing provided about the brand?** Use generic, descriptive language ("the product", "the device", "the item shown"). Never fill gaps with made-up brand names, model numbers, pricing, or features.
+
+**When writing prompts for textAI/storyAI**: If the user hasn't specified a brand, write "a premium wireless headphone" — not "Sony WH-1000XM5". If they provided a photo, write "the headphone shown in the reference image" — don't guess the brand from the image. Let the AI models work with visual references rather than hallucinated text descriptions.
 
 ## Prompt crafting
 
@@ -61,6 +81,17 @@ See the [Models](models.md) doc for the full limits table.
 If the user wants a single image or video, use `textAI` to enrich the prompt. If they want multiple scenes (video series, story), use `storyAI` — it has 8 scene output handles (`scene_1` through `scene_8`), each producing a tailored prompt. Connect each scene to its own `imageAI` → `videoAI` chain. storyAI has modes like "multishot" and "continuous shot" to guide how it structures the scenes.
 
 Don't try to make `textAI` output multiple scenes by hacking the prompt — storyAI handles scene splitting, pacing, and coherence natively. Multiple textAI nodes manually writing "scene 1", "scene 2" produces inconsistent tone and pacing.
+
+## Always connect reference images to storyAI
+
+`storyAI` accepts a `Reference Image` input handle (`image`). **When the workflow has an `imageInput` node, always connect it to `storyAI`'s image input** — this lets the model see the actual product/subject instead of guessing. Without a reference image, storyAI tends to hallucinate specific brand names, model numbers, or visual details it can't know. The reference image grounds the scene descriptions in reality.
+
+```
+imageInput → storyAI (image handle)    ← always connect when imageInput exists
+textInput  → storyAI (text handle)
+```
+
+This also applies when `websiteResearch` provides screenshots — connect them to `storyAI`'s image input for brand-aware scene generation.
 
 ## Generate a start frame for video
 
@@ -160,19 +191,22 @@ tiktokResearch ──content──→ textAI (hook-style prompt) → videoAI
 
 ## Execution
 
-### Default: node-by-node execution with approval gates
+### Default: batch execution with tier-based approval gates
 
-When the user says "run it" (or similar), **always execute node by node using `run_node`** in dependency order. This is the mandatory default — never use `run_workflow` unless the user explicitly asks for it.
+When the user says "run it" (or similar), execute in **tier batches** using `run_node` — not strict one-by-one. Never use `run_workflow` unless the user explicitly asks for it.
 
 **Execution flow:**
 
-1. Run the first node (or group of cheap/fast nodes like `textAI`)
-2. Use `get_node_outputs` to review results
-3. Present the output to the user — describe what was generated
-4. **Wait for user approval** before running the next node
-5. Repeat until the workflow is complete
+1. Run all text-tier nodes at once (`textAI`, `storyAI`, `voiceAI`) — they're fast and cheap
+2. Use `get_node_outputs` to review results for the batch
+3. Present combined text outputs to the user
+4. After approval, run all `imageAI` nodes at once — present images
+5. After approval, run `videoAI` nodes — these are slow/expensive, always confirm cost first
+6. Run post-processing (`videoCaptions`, `videoMerge`, `slideshow`)
 
-**Pause especially before expensive nodes:** Before running `videoAI` or any node costing >15 credits, always check `get_credit_balance` and `get_pricing`, state the cost, and get explicit approval.
+**Pause before expensive tiers:** Before running `imageAI` or `videoAI` batches, check `get_credit_balance` and `get_pricing`, state the total cost for the batch, and get explicit approval.
+
+**NEVER auto-run video generation.** Even if the user has bypass-permissions or auto-approve enabled, `videoAI` nodes must ALWAYS require explicit user confirmation before execution. Video generation is slow (1-4 minutes per clip) and expensive (10-50x image cost). Present the start frame images first, confirm the user is happy, state the cost, and only run video after they explicitly say yes. This rule has no exceptions.
 
 ### `run_workflow` requires explicit user request + warning
 
@@ -246,9 +280,11 @@ Use `build_graph` for adding nodes. Use individual `add_node`/`connect_nodes` on
 
 **Why this matters for layout**: `add_node` places each new node at `(maxX + 200, avgY)` — so repeated calls produce a straight horizontal line with all nodes at the same Y. `build_graph` runs a topological column layout (groups nodes by depth, stacks per column) that produces a proper DAG. If you build a workflow with sequential `add_node` calls, it will look like a flat line on the canvas and the user will have to reorganize it manually.
 
+**Always call `organize_layout` after `build_graph`**: The auto-positioning in `build_graph` can produce overlapping nodes in complex workflows. After every `build_graph` call, immediately call `organize_layout` to clean up the layout into a proper left-to-right DAG. This is cheap and instant — always do it.
+
 **Phased construction is fine** — you can call `build_graph` multiple times across a session (e.g., build the input+enrichment layer first, review with the user, then build the generation layer in a second call). Each `build_graph` call auto-appends its new nodes to the right of existing ones with a clean column layout. What's NOT fine is substituting a series of `add_node` + `connect_nodes` calls for one `build_graph` call that would have added the same nodes at once.
 
-**Rule**: if you're adding 2+ nodes as one logical group, they MUST go through a single `build_graph` call. Multiple `build_graph` calls for separate phases are fine.
+**Rule**: if you're adding 2+ nodes as one logical group, they MUST go through a single `build_graph` call. Multiple `build_graph` calls for separate phases are fine. Always follow with `organize_layout`.
 
 ## Check prompt templates first
 

@@ -91,14 +91,17 @@ cancel_job({ jobId: "..." })
 - Only works on `pending` or `processing` jobs
 - Credits are refunded for cancelled jobs
 
-## Execution order for manual runs
+## Execution order — batch by tier
 
-If running nodes individually (not `run_workflow`), execute in dependency order:
+Run nodes in dependency-ordered **batches**, not one-by-one:
 
-1. Input nodes don't need execution — they just hold data
-2. Run upstream AI nodes first (text generation)
-3. Then dependent nodes (image from text, video from image)
-4. Each node resolves inputs from the most recent output of connected upstream nodes
+1. **Input nodes** don't need execution — they just hold data
+2. **Batch 1 — Text tier**: Run all `textAI`, `storyAI`, `voiceAI` nodes at once (fast, cheap). Present combined text outputs for review.
+3. **Batch 2 — Image tier**: After user approves text, run all `imageAI` nodes at once. Present images for review.
+4. **Batch 3 — Video tier**: After user approves images, run `videoAI` nodes. These are slow and expensive — always confirm cost first.
+5. **Batch 4 — Post-processing**: `videoCaptions`, `videoMerge`, `slideshow` etc.
+
+Each node resolves inputs from the most recent output of connected upstream nodes. Only pause between tiers — not between individual nodes within a tier.
 
 ## Cost awareness
 

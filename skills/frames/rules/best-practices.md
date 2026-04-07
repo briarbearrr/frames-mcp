@@ -10,15 +10,15 @@ Before jumping into `build_graph`, ask the user 2-3 targeted questions max to na
 
 ### Always build the complete workflow first
 
-Building a workflow is free — node placement and edge connections cost nothing. Always build the full pipeline with `build_graph` first, then present it to the user and ask: "Workflow is ready. Want me to run it step by step or all at once?" Never half-build a workflow to "validate the concept" — that just means rebuilding later.
+Building a workflow is free — node placement and edge connections cost nothing. Always build the full pipeline with `build_graph` first, then present it to the user. Never half-build a workflow to "validate the concept" — that just means rebuilding later.
 
 ### Never run immediately after building
 
 **After building a workflow, STOP and present it to the user.** Share the workflow URL, describe what you built (nodes, connections, models chosen), and ask for confirmation before executing anything. Execution costs credits — the user must explicitly approve before any `run_node` or `run_workflow` call. Don't assume "build me X" means "build and run X". Building is free, running is not. This rule applies even when the agent has auto-approve or bypass-permissions enabled — always ask before spending credits.
 
-### Execute in phases, not all at once
+### Always execute node by node
 
-Once the user approves execution, run in phases — not all at once. Run the first segment (e.g., `textInput` → `textAI` → `imageAI`), verify the output looks right, then run the next segment (e.g., `videoAI`). Never rerun nodes that already produced good output — it wastes credits and time.
+Once the user approves execution, **always run nodes individually with `run_node`** in dependency order. After each node (or small segment of cheap nodes like `textAI` → `imageAI`), present the output to the user and get their approval before running the next node. Never run the full workflow at once — the user must see and approve each step. Never rerun nodes that already produced good output — it wastes credits and time.
 
 ## Prompt crafting
 
@@ -160,23 +160,31 @@ tiktokResearch ──content──→ textAI (hook-style prompt) → videoAI
 
 ## Execution
 
-### Ask before running: phased or straight through
+### Default: node-by-node execution with approval gates
 
-When the user says "run it" (or similar), and the workflow contains **any** `videoAI` node or any single node costing more than ~15 credits, **ask first** which execution mode they want — do NOT default to `run_workflow`.
+When the user says "run it" (or similar), **always execute node by node using `run_node`** in dependency order. This is the mandatory default — never use `run_workflow` unless the user explicitly asks for it.
 
-Offer exactly two options:
+**Execution flow:**
 
-> **Phased** — I run the cheap/fast nodes first (text, images, voice), show you the outputs, and wait for your approval before running the expensive video generation. Best for iteration — you can regenerate images if they don't look right without wasting video credits.
->
-> **Straight through** — I run everything end-to-end and hand you the final video. Fastest if you trust the pipeline.
+1. Run the first node (or group of cheap/fast nodes like `textAI`)
+2. Use `get_node_outputs` to review results
+3. Present the output to the user — describe what was generated
+4. **Wait for user approval** before running the next node
+5. Repeat until the workflow is complete
 
-If the user picks **phased**: loop `run_node` per node in the pre-video segment (textAI → imageAI → voiceAI chains), then stop and `get_node_outputs` on the images, present them, ask for approval, then `run_node` the videoAI + downstream nodes.
+**Pause especially before expensive nodes:** Before running `videoAI` or any node costing >15 credits, always check `get_credit_balance` and `get_pricing`, state the cost, and get explicit approval.
 
-If the user picks **straight through**: call `run_workflow` once.
+### `run_workflow` requires explicit user request + warning
 
-For cheap workflows (no videoAI, total under ~15 credits), skip the ask and just run.
+**Never call `run_workflow` by default.** It is only allowed when the user explicitly requests full pipeline execution (e.g., "run the whole thing at once", "run everything end-to-end").
 
-This is not optional. Do not assume the user wants one or the other — ask.
+Even then, before calling `run_workflow`, you **must**:
+
+1. **Warn**: "`run_workflow` executes every node without review checkpoints — you won't see intermediate outputs or be able to stop before expensive nodes run."
+2. **State cost**: Check `get_credit_balance` and `get_pricing` for the expensive nodes, and tell the user the approximate total cost.
+3. **Get explicit confirmation**: The user must confirm after seeing the warning and cost. A generic "run it" is NOT sufficient — they must acknowledge the all-at-once mode specifically.
+
+If the user doesn't explicitly request all-at-once execution, always use node-by-node.
 
 ### Check outputs before continuing downstream
 

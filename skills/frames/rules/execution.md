@@ -35,6 +35,10 @@ run_node({
 
 ## Running an entire workflow
 
+> **WARNING: `run_workflow` skips all review checkpoints.** It executes every node without pausing for output review or user approval. The agent should **never use `run_workflow` by default** — always use `run_node` in dependency order so the user can review and approve each step. See best-practices.md for the full approval protocol.
+
+`run_workflow` is only allowed when the user **explicitly requests** full pipeline execution AND the agent has warned about cost and loss of review control, and the user has confirmed.
+
 ```
 run_workflow({
   workflowId: "...",

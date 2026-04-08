@@ -86,8 +86,8 @@ Load the relevant rules file when working in each area:
 
 ### Execution (costs credits)
 
-- `run_node` — execute a single node **(default — always use this, node by node with user approval between steps)**
-- `run_workflow` — execute entire workflow **(requires explicit user request + warning about cost/no review checkpoints — never use by default)**
+- `run_node` — execute a single node (default — follow `_agentInstructions` in each response)
+- `run_workflow` — execute entire workflow (requires `userConfirmed: true`)
 - `get_node_outputs` — retrieve execution results
 - `cancel_job` — cancel an in-progress async job
 

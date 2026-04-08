@@ -271,52 +271,12 @@ videoAI ──video──→ audioOverlay
 
 ## Execution
 
-### Default: batch execution with tier-based approval gates
+Execution behavior (tier-based batching, approval gates, cost checks) is enforced by the `run_node` tool responses — follow the `_agentInstructions` field in each response. See [execution.md](execution.md) for reference.
 
-When the user says "run it" (or similar), execute in **tier batches** using `run_node` — not strict one-by-one. Never use `run_workflow` unless the user explicitly asks for it.
+Key points not covered by tool responses:
 
-**Execution flow:**
-
-1. Run all text-tier nodes at once (`textAI`, `storyAI`, `voiceAI`) — they're fast and cheap
-2. Use `get_node_outputs` to review results for the batch
-3. Present combined text outputs to the user
-4. After approval, run all `imageAI` nodes at once — present images
-5. After approval, run `videoAI` nodes — these are slow/expensive, always confirm cost first
-6. Run post-processing (`videoCaptions`, `videoMerge`, `slideshow`)
-
-**Pause before expensive tiers:** Before running `imageAI` or `videoAI` batches, check `get_credit_balance` and `get_pricing`, state the total cost for the batch, and get explicit approval.
-
-**NEVER auto-run video generation.** Even if the user has bypass-permissions or auto-approve enabled, `videoAI` nodes must ALWAYS require explicit user confirmation before execution. Video generation is slow (1-4 minutes per clip) and expensive (10-50x image cost). Present the start frame images first, confirm the user is happy, state the cost, and only run video after they explicitly say yes. This rule has no exceptions.
-
-### `run_workflow` requires explicit user request + warning
-
-**Never call `run_workflow` by default.** It re-executes ALL nodes from scratch — even ones that already have outputs. If 4 out of 5 nodes are done, `run_workflow` will re-run all 5, overwriting existing outputs and wasting credits. **Always use `run_node` on the specific remaining nodes instead.**
-
-`run_workflow` is only allowed when the user explicitly requests a full re-execution from scratch (e.g., "start over", "re-run everything from the beginning").
-
-Even then, before calling `run_workflow`, you **must**:
-
-1. **Warn**: "`run_workflow` will re-execute ALL nodes from scratch, overwriting existing outputs. You won't see intermediate outputs or be able to stop before expensive nodes run."
-2. **State cost**: Check `get_credit_balance` and `get_pricing` for the expensive nodes, and tell the user the approximate total cost.
-3. **Get explicit confirmation**: The user must confirm after seeing the warning and cost. A generic "run it" is NOT sufficient — they must acknowledge the all-at-once mode specifically.
-
-If the user doesn't explicitly request all-at-once execution, always use node-by-node.
-
-### Check outputs before continuing downstream
-
-After running a node, use `get_node_outputs` to review what was produced before running the next node in the chain. This is the agent's responsibility — check internally and only flag issues to the user. If the output looks fine, keep going without asking. Don't force the user to review every step. But if something looks off (wrong style, garbled text, bad composition), stop and surface it before wasting credits downstream.
-
-### Run nodes individually when iterating
-
-When the user is iterating on a workflow (refining prompts, changing models, trying variations), use `run_node` per node instead of `run_workflow`. Gives control over each step — regenerate individual nodes without re-running the whole pipeline. `run_workflow` is for validated, final production runs where the user has already approved the expensive-node cost (see "Ask before running" above).
-
-### Only rerun the node that needs fixing
-
-When the user asks to "fix" or "improve" a result (e.g., "the image is too dark", "change the narration tone"), only update and rerun the specific node that needs changing. Don't rerun the whole workflow — upstream nodes that produced good output don't need to be touched. Update the node's data if needed, then `run_node` on just that node.
-
-### Check credits before video generation
-
-Video is expensive. Call `get_credit_balance` and `get_pricing({ operation: "video-generation" })` before running videoAI nodes. Tell the user the cost and ask for confirmation.
+- **Only rerun what needs fixing**: When iterating, `run_node` on the specific node — don't rerun the whole pipeline.
+- **Check outputs internally**: After running a node, review the output before continuing downstream. Only flag issues to the user if something looks off.
 
 ## Workflow hygiene
 

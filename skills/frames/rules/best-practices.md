@@ -225,6 +225,27 @@ websiteResearch ──brandDocument──→ textAI (brand-aware prompt enrichme
 tiktokResearch ──content──→ textAI (hook-style prompt) → videoAI
 ```
 
+## Use audioOverlay to combine video + audio
+
+When a workflow has separate video and audio tracks that need to be combined (e.g., `videoAI` output + `voiceAI` output), use `audioOverlay` instead of `videoCaptions`. `videoCaptions` is for adding captions WITH audio — `audioOverlay` is for merging audio onto video without captions.
+
+**When to use audioOverlay:**
+- User wants voiceover on a video but no captions
+- User has a video clip and a separate music/audio track to combine
+- Any "add audio to video" scenario where captions aren't needed
+
+**When to use videoCaptions instead:**
+- User wants captions displayed on the video (with or without audio)
+
+```
+voiceAI ──audio──→ audioOverlay ──video──→ (output with audio)
+videoAI ──video──→ audioOverlay
+```
+
+**audioMode options:**
+- `replace` (default) — replaces the video's original audio entirely with the provided audio
+- `mix` — mixes both audio tracks together (useful for background music + voiceover)
+
 ## Execution
 
 ### Default: batch execution with tier-based approval gates

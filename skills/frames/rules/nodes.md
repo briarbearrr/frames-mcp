@@ -36,6 +36,7 @@
 | --------------- | -------------- | ----------------------- | ------ | ------------------------------ |
 | `videoTrim`     | Video Trim     | video                   | video  | Trim start/end of a video      |
 | `videoMerge`    | Video Merge    | video (multiple)        | video  | Combine multiple videos        |
+| `audioOverlay`  | Audio Overlay  | video, audio            | video  | Merge audio onto video         |
 | `videoCaptions` | Video Captions | video, audio (optional) | video  | Add captions/subtitles overlay |
 
 ### Compose nodes (combine media)
@@ -106,5 +107,6 @@ Common handles:
 - `videoCaptions`: output `video`, inputs `video`, `audio`
 - `videoMerge`: outputs `video`, `duration`; input `videos` (plural — accepts up to 10 connections)
 - `videoTrim`: output `video`, input `video`
+- `audioOverlay`: outputs `video`, `duration`; inputs `video`, `audio` — merges audio onto video (replace or mix)
 - `slideshow`: output `video`, inputs `images` (plural), `audio`
 - `iterator`/`closeIterator`: output `items`/`collected`

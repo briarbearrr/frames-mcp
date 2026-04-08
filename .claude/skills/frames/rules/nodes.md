@@ -106,6 +106,5 @@ Common handles:
 - `videoCaptions`: output `video`, inputs `video`, `audio`
 - `videoMerge`: outputs `video`, `duration`; input `videos` (plural — accepts up to 10 connections)
 - `videoTrim`: output `video`, input `video`
-- `audioOverlay`: output `video`, `duration`; inputs `video`, `audio` — merges audio onto video (replace or mix mode)
 - `slideshow`: output `video`, inputs `images` (plural), `audio`
 - `iterator`/`closeIterator`: output `items`/`collected`

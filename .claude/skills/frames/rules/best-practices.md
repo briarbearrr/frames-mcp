@@ -21,7 +21,6 @@ Building a workflow is free — node placement and edge connections cost nothing
 Once the user approves execution, run nodes in **dependency-ordered batches** using `run_node`. Group cheap/fast nodes (textAI, storyAI, voiceAI) into a single batch — run them all, then present the combined results. Only pause and ask for approval **before expensive nodes** (imageAI, videoAI) or at natural review points.
 
 **Batch strategy:**
-
 1. Run all text/story/voice nodes in one pass (they're fast and cheap)
 2. Present the text outputs — let the user review scripts/prompts
 3. After approval, run all imageAI nodes in one pass
@@ -153,10 +152,10 @@ A common mistake: trying to connect `voiceAI` output to `videoAI`. Video generat
 Use ~2.5 words per second as a guideline:
 
 | Video duration | Max narration |
-| -------------- | ------------- |
-| 5 seconds      | ~12 words     |
-| 10 seconds     | ~25 words     |
-| 15 seconds     | ~37 words     |
+|---------------|---------------|
+| 5 seconds     | ~12 words     |
+| 10 seconds    | ~25 words     |
+| 15 seconds    | ~37 words     |
 
 **Single-shot workflows** (one videoAI node): The narration textAI must have `maxOutputChars` set low enough to produce a short script matching the video duration. For a 5-second video ad, the script should be 1-2 punchy sentences — not a paragraph.
 
@@ -171,7 +170,6 @@ Which asset leads depends on the user's intent: if they start with a script, the
 When the user specifies a total duration, **divide it equally across scenes** and enforce that budget on BOTH video and audio per scene. Every scene's video clip duration and narration length must match so audio and visuals stay synchronized.
 
 **Example**: User says "15 second video with 3 scenes":
-
 - Each scene = 5 seconds
 - Each video clip: set `duration: 5` on each `videoAI` node
 - Each narration chunk: ~12 words per scene (5s × 2.5 words/s)
@@ -226,30 +224,6 @@ websiteResearch ──brandDocument──→ textAI (brand-aware prompt enrichme
                 ──screenshots───→ imageAI (reference image)
 tiktokResearch ──content──→ textAI (hook-style prompt) → videoAI
 ```
-
-## Use audioOverlay to combine video + audio
-
-When a workflow has separate video and audio tracks that need to be combined (e.g., `videoAI` output + `voiceAI` output), use `audioOverlay` instead of `videoCaptions`. `videoCaptions` is for adding captions WITH audio — `audioOverlay` is for merging audio onto video without captions.
-
-**When to use audioOverlay:**
-
-- User wants voiceover on a video but no captions
-- User has a video clip and a separate music/audio track to combine
-- Any "add audio to video" scenario where captions aren't needed
-
-**When to use videoCaptions instead:**
-
-- User wants captions displayed on the video (with or without audio)
-
-```
-voiceAI ──audio──→ audioOverlay ──video──→ (output with audio)
-videoAI ──video──→ audioOverlay
-```
-
-**audioMode options:**
-
-- `replace` (default) — replaces the video's original audio entirely with the provided audio
-- `mix` — mixes both audio tracks together (useful for background music + voiceover)
 
 ## Execution
 

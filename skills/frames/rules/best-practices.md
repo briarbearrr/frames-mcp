@@ -30,6 +30,22 @@ Once the user approves execution, run nodes in **dependency-ordered batches** us
 
 Never rerun nodes that already produced good output — it wastes credits and time. Never run the full workflow with `run_workflow` unless explicitly asked.
 
+## Generate concepts from images
+
+When the user provides an image and wants text generated from it (ad concepts, descriptions, scene ideas), connect the image directly to `textAI`'s image input handle. Text input is optional when an image is connected -- the prompt template and image are sufficient.
+
+```
+imageInput → textAI (image handle connected, promptTemplate: "custom", customPrompt: "Describe this product and create an ad concept")
+```
+
+This pattern is useful for:
+
+- Generating ad copy from a product photo
+- Creating scene descriptions from reference images
+- Extracting visual details for downstream prompt enrichment
+
+Set `additionalInstructions` to control the output format and length. The textAI node will analyze the image and generate text based on the prompt template and any connected text input.
+
 ## Ground everything in user-provided inputs — never hallucinate details
 
 **This is critical.** When the user provides images, text, documents, brand URLs, or any reference material, all generated content must be grounded in those inputs. Never invent brand names, product models, company slogans, visual details, or any specific claims that aren't present in the user's inputs.
@@ -40,6 +56,8 @@ Never rerun nodes that already produced good output — it wastes credits and ti
 - **Nothing provided about the brand?** Use generic, descriptive language ("the product", "the device", "the item shown"). Never fill gaps with made-up brand names, model numbers, pricing, or features.
 
 **When writing prompts for textAI/storyAI**: If the user hasn't specified a brand, write "a premium wireless headphone" — not "Sony WH-1000XM5". If they provided a photo, write "the headphone shown in the reference image" — don't guess the brand from the image. Let the AI models work with visual references rather than hallucinated text descriptions.
+
+**When generating scene descriptions from images**: Always include `additionalInstructions` telling the model to describe what it sees rather than guessing brand/model names. Example: "Describe the product shown in the reference image. Do not guess the brand name or model number — use generic descriptors like 'the smartphone' or 'the device'." Without this constraint, image models tend to hallucinate specific brand identities from visual cues, producing inaccurate marketing copy.
 
 ## Prompt crafting
 
@@ -158,7 +176,7 @@ Use ~2.5 words per second as a guideline:
 | 10 seconds     | ~25 words     |
 | 15 seconds     | ~37 words     |
 
-**Single-shot workflows** (one videoAI node): The narration textAI must have `maxOutputChars` set low enough to produce a short script matching the video duration. For a 5-second video ad, the script should be 1-2 punchy sentences — not a paragraph.
+**Single-shot workflows** (one videoAI node): The narration textAI must have `maxOutputChars` set low enough to produce a short script matching the video duration. For a 5-second video ad, the script should be 1-2 punchy sentences — not a paragraph. Always set `additionalInstructions` on narration textAI nodes to constrain output length. For a 5-second scene: "Write exactly 12 words of narration." For 15 seconds total across 3 scenes, constrain each scene's textAI to ~12 words. Without explicit length constraints, the prompt template will produce paragraph-length output that far exceeds the video duration.
 
 **Multi-shot workflows** (narration > 15 seconds): Use `storyAI` to split into scenes, each with its own `imageAI` → `videoAI` chain (3-15s per clip), then `videoMerge` to combine. A 60-second narration needs ~4-12 video clips. Never pair a long script with a single short video — it's unusable.
 
@@ -272,11 +290,13 @@ When the user says "run it" (or similar), execute in **tier batches** using `run
 
 ### `run_workflow` requires explicit user request + warning
 
-**Never call `run_workflow` by default.** It is only allowed when the user explicitly requests full pipeline execution (e.g., "run the whole thing at once", "run everything end-to-end").
+**Never call `run_workflow` by default.** It re-executes ALL nodes from scratch — even ones that already have outputs. If 4 out of 5 nodes are done, `run_workflow` will re-run all 5, overwriting existing outputs and wasting credits. **Always use `run_node` on the specific remaining nodes instead.**
+
+`run_workflow` is only allowed when the user explicitly requests a full re-execution from scratch (e.g., "start over", "re-run everything from the beginning").
 
 Even then, before calling `run_workflow`, you **must**:
 
-1. **Warn**: "`run_workflow` executes every node without review checkpoints — you won't see intermediate outputs or be able to stop before expensive nodes run."
+1. **Warn**: "`run_workflow` will re-execute ALL nodes from scratch, overwriting existing outputs. You won't see intermediate outputs or be able to stop before expensive nodes run."
 2. **State cost**: Check `get_credit_balance` and `get_pricing` for the expensive nodes, and tell the user the approximate total cost.
 3. **Get explicit confirmation**: The user must confirm after seeing the warning and cost. A generic "run it" is NOT sufficient — they must acknowledge the all-at-once mode specifically.
 

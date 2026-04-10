@@ -45,6 +45,10 @@ Before creating a new workflow, check for existing resources:
 
 When scanning workflows, if any are missing a description, generate one from the graph structure via `get_workflow` and save it with `update_workflow`.
 
+## Recommending what to build for a budget
+
+If the user asks "what can I build for $X", "what's possible with Y credits", or any budget-scoped ideation question, load [rules/recommendations.md](rules/recommendations.md) before responding. The playbook calls `discover_options` first, then mixes the user's existing workflows, Frames products & essentials, and 1–2 fresh custom build suggestions into a single ranked recommendation.
+
 ## Parameter validation
 
 The server validates all field values on `add_node`, `update_node_data`, and `build_graph` — invalid values return clear error messages. These tools also return `configurableFields` with full constraints (min/max/step/options) in their responses.
@@ -53,6 +57,7 @@ The server validates all field values on `add_node`, `update_node_data`, and `bu
 
 Load the relevant rules file when working in each area:
 
+- **Budget-scoped recommendations ("what can I build for $X")** → load [rules/recommendations.md](rules/recommendations.md)
 - **Building workflows from scratch or templates** → load [rules/workflow-patterns.md](rules/workflow-patterns.md)
 - **Understanding available nodes, sockets, and connections** → load [rules/nodes.md](rules/nodes.md)
 - **Choosing and configuring AI models** → load [rules/models.md](rules/models.md)
@@ -64,6 +69,7 @@ Load the relevant rules file when working in each area:
 
 ### Discovery (always safe to call)
 
+- `discover_options({ budget, include?, exclude? })` — budget-aware recommendation mixing user workflows, products, essentials, and templates. Use for any "what can I build for $X" question.
 - `list_node_types` — see all available nodes
 - `get_node_type_info({ nodeType })` — details on a specific node (fields, models, handle IDs)
 - `list_models` — available AI models by category

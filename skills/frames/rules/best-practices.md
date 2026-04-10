@@ -294,7 +294,7 @@ When creating or renaming workflows via `create_workflow` / `rename_workflow`, s
 
 ### Name nodes descriptively
 
-Give nodes clear labels that describe their purpose — "Scene Description Enricher" instead of "Text AI 1", "Product Hero Shot" instead of "Image AI 2". Set the `label` field via `build_graph` dataUpdates or `update_node_data`. Descriptive names make workflows readable when the user comes back later and help the agent understand existing workflows.
+Give nodes clear labels that describe their purpose — "Scene Description Enricher" instead of "Text AI 1", "Product Hero Shot" instead of "Image AI 2". Set the `label` field via `build_graph` with `dataUpdates`. Descriptive names make workflows readable when the user comes back later and help the agent understand existing workflows.
 
 ### Duplicate workflows to experiment
 
@@ -316,15 +316,15 @@ When using `videoMerge`, the order of input connections determines the final vid
 
 After `duplicate_workflow`, always review and update the input nodes (`textInput`, `imageInput`, `videoInput`) with the new content before running. A duplicated workflow still has the old inputs baked in.
 
-## Use build_graph over individual calls
+## build_graph is the only graph mutation tool
 
-Use `build_graph` for adding nodes. Use individual `add_node`/`connect_nodes` only for single-node incremental edits to an already-built workflow (e.g., inserting one new node into an existing chain).
+All graph mutations — adding, updating, removing nodes and edges — go through `build_graph`. The old single-node tools (`add_node`, `remove_node`, `update_node_data`, `connect_nodes`, `disconnect_nodes`, `list_edges`) have been removed. One atomic call per mutation, always.
 
-**Why this matters for layout**: `add_node` places each new node at `(maxX + 200, avgY)` — so repeated calls produce a straight horizontal line with all nodes at the same Y. `build_graph` runs a topological column layout (groups nodes by depth, stacks per column) that produces a proper DAG. If you build a workflow with sequential `add_node` calls, it will look like a flat line on the canvas and the user will have to reorganize it manually.
+`build_graph` runs a topological column layout (groups nodes by depth, stacks per column) that produces a proper DAG.
 
 **Always call `organize_layout` after `build_graph`**: The auto-positioning in `build_graph` can produce overlapping nodes in complex workflows. After every `build_graph` call, immediately call `organize_layout` to clean up the layout into a proper left-to-right DAG. This is cheap and instant — always do it.
 
-**Phased construction is fine** — you can call `build_graph` multiple times across a session (e.g., build the input+enrichment layer first, review with the user, then build the generation layer in a second call). Each `build_graph` call auto-appends its new nodes to the right of existing ones with a clean column layout. What's NOT fine is substituting a series of `add_node` + `connect_nodes` calls for one `build_graph` call that would have added the same nodes at once.
+**Phased construction is fine** — you can call `build_graph` multiple times across a session (e.g., build the input+enrichment layer first, review with the user, then build the generation layer in a second call). Each `build_graph` call auto-appends its new nodes to the right of existing ones with a clean column layout.
 
 **Rule**: if you're adding 2+ nodes as one logical group, they MUST go through a single `build_graph` call. Multiple `build_graph` calls for separate phases are fine. Always follow with `organize_layout`.
 

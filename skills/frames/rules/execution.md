@@ -21,9 +21,28 @@ run_node({ workflowId: "...", nodeId: "...", inputs: { text: "..." } })
 
 The tool response includes `tier`, `mediaUrls`, and `_agentInstructions` — follow the instructions in each response to know when to show results and when to pause for user approval.
 
-## run_workflow
+## run_workflow — MANDATORY polling loop
 
-Requires `userConfirmed: true` — the tool rejects calls without it. Always prefer `run_node` tier-by-tier. See the tool description for details.
+Requires `userConfirmed: true` — the tool rejects calls without it. Always prefer `run_node` tier-by-tier.
+
+When you DO call `run_workflow`, it returns immediately with `{ run_id, status: "running" }` and dispatches execution in the background. **You MUST enter a polling loop:**
+
+```
+1. Call get_run_status({ run_id }) every 5 seconds.
+2. Continue polling until status is NOT "running" or "pending"
+   (terminal states: "completed", "partial", "failed", "cancelled").
+3. On "completed":
+     - Read outputs from the response.
+     - Call get_node_outputs if you need more detail.
+     - Present the final result to the user.
+4. On "failed":
+     - Surface the error verbatim.
+     - Offer next steps (retry, edit a node, try a cheaper model).
+5. Never hand control back to the user mid-run.
+6. Never tell the user to say "status" or "check progress" — YOU do the polling.
+```
+
+The polling loop is non-negotiable. A user should never have to babysit a running workflow.
 
 ## Getting outputs
 

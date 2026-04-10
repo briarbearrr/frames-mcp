@@ -1,11 +1,29 @@
 ---
 name: frames
 description: |
-  Frames — AI video generation platform. Build and run AI pipelines using natural language
-  through the Frames MCP server. Create workflows with text, image, video, and voice AI nodes,
-  connect them into pipelines, execute them, and publish as API endpoints.
+  MUST INVOKE BEFORE calling ANY `mcp__frames__*` tool. Frames is an AI video generation
+  platform for building, running, and publishing AI pipelines (text, image, video, voice,
+  captions) via MCP. This skill defines the required execution policy, pricing/budget
+  playbook, node-by-node workflow discipline, and recommendation format — calling Frames
+  MCP tools without loading it first will produce wrong behavior (skipped clarifications,
+  unapproved full-workflow runs, malformed budget pitches, missing pricing lookups).
+
+  AUTO-TRIGGER on ANY of the following, with or without "/frames":
+  - Any mention of "video", "ad", "marketing video", "product video", "brand video",
+    "slideshow", "reel", "voiceover", "AI pipeline", "workflow", "pipeline"
+  - Any budget/credit/pricing question: "what can I build for $X", "what's possible
+    with Y credits", "ideas for $X", "how much does X cost", "pricing for video"
+  - Any industry-scoped video ideation: "I have a real estate agency / restaurant /
+    SaaS / store — what video can I get", "video for my business"
+  - Any request to build, run, list, execute, publish, modify, or debug Frames
+    workflows, nodes, products, templates, or API endpoints
+  - Any question about Frames models, credits, templates, MCP tools, or `mcp__frames__*`
+  - User types "/frames" or references the Frames platform by name
+
+  If a `mcp__frames__*` tool looks like a direct answer to the user's question, that is
+  the STRONGEST signal to load this skill first — never shortcut straight to the tool.
 metadata:
-  tags: frames, video, ai, mcp, workflow, pipeline
+  tags: frames, video, ai, mcp, workflow, pipeline, budget, marketing, ads, recommendations, real-estate, pricing, credits, business-video
 ---
 
 ## What is Frames
@@ -34,6 +52,27 @@ You interact with Frames through MCP tools. You can create workflows, add and co
 
 4. Ask before executing — running nodes costs credits.
 
+## Remember user context
+
+When the user names a business, brand, industry, or drops a URL in the conversation, you MUST carry that context into every subsequent action:
+
+1. **Treat it as a hard requirement.** Every concept, prompt, and cost quote must serve that specific brand. A generic "key-turn reveal" becomes "Sotheby's key-turn reveal". A stock prompt becomes one that names the brand and industry.
+2. **Offer `websiteResearch` when a URL is given.** It extracts brand context, color palette, and screenshots you can feed into `textAI` prompts. If the user declines, bake the brand name + industry explicitly into every `textAI` node's prompt via `build_graph` with `dataUpdates`.
+3. **Name concepts with the brand embedded** — never a generic format name. "Sotheby's golden-hour glide" ✓, "Golden-hour glide" ✗.
+4. **Never propose a concept that would work for any business.** The pitch must only make sense for the user's specific brand. If you catch yourself writing a concept that could be copy-pasted to a restaurant or a SaaS, stop and rewrite it.
+
+This rule applies for the entire conversation once established — you don't get to "forget" the brand between turns.
+
+## Polling workflow execution
+
+When you call `run_workflow`, it returns `{ run_id, status: "running" }` and starts execution in the background. You MUST enter a polling loop:
+
+1. Call `get_run_status({ run_id })` every 5 seconds.
+2. Continue polling until `status` is not `"running"` or `"pending"` (i.e., `"completed"`, `"partial"`, `"failed"`, or `"cancelled"`).
+3. **Never hand control back to the user mid-run.** Never tell the user to say "status" or "check progress".
+4. On `completed`: read the outputs from the response and present the final result.
+5. On `failed`: surface the error and offer next steps.
+
 ## Check existing resources first
 
 Before creating a new workflow, check for existing resources:
@@ -47,11 +86,11 @@ When scanning workflows, if any are missing a description, generate one from the
 
 ## Recommending what to build for a budget
 
-If the user asks "what can I build for $X", "what's possible with Y credits", or any budget-scoped ideation question, load [rules/recommendations.md](rules/recommendations.md) before responding. The playbook calls `discover_options` first, then mixes the user's existing workflows, Frames products & essentials, and 1–2 fresh custom build suggestions into a single ranked recommendation.
+If the user asks "what can I build for $X", "what's possible with Y credits", or any budget-scoped ideation question, load [rules/recommendations.md](rules/recommendations.md) before responding. The playbook calls `discover_options` first, then returns a single ranked list of 4–6 creative concepts — each pitched as a 2-sentence idea with a "Pipeline: uses X" realization line (saved workflow, product, essential, template, or custom build) and an upper-bound "up to N credits" cost. Never use bucket headers. Never name a concept by its format ("slideshow ad", "hero shot"). Never quote custom-build costs without calling `get_pricing` per node.
 
 ## Parameter validation
 
-The server validates all field values on `add_node`, `update_node_data`, and `build_graph` — invalid values return clear error messages. These tools also return `configurableFields` with full constraints (min/max/step/options) in their responses.
+The server validates all field values on `build_graph` — invalid values return clear error messages that include the field's full schema in the `details.fieldErrors` payload. Scalar type mismatches that are unambiguous (e.g., `"off"` for a boolean field, or a numeric string for a number field) are auto-coerced so you don't need to retry.
 
 ## Tool categories
 
@@ -85,22 +124,21 @@ Load the relevant rules file when working in each area:
 
 ### Graph building
 
-- `add_node` / `remove_node` / `update_node_data` — single operations (avoid for building — use `build_graph`)
-- `connect_nodes({ sourceHandle, targetHandle })` / `disconnect_nodes` / `list_edges` — edge management (avoid — use `build_graph`)
-- `build_graph` — **ALWAYS use this** for building pipelines (atomic, 1 call vs many)
-- `validate_workflow` — check for issues before execution
+- `build_graph` — **THE ONLY graph mutation tool.** Atomic batch ops: `addNodes`, `addEdges`, `dataUpdates` (partial merge), `removeNodeIds`, `removeEdgeIds`. Supports `tempId` references for edges to newly-added nodes. Auto-positions in a clean DAG layout.
+- `organize_layout` — opt-in full re-layout pass (dagre). Overwrites positions.
+- `validate_workflow` — check for issues AND warnings before execution. If warnings are present, ask the user about them before running.
 
 ### Execution (costs credits)
 
 - `run_node` — execute a single node (default — follow `_agentInstructions` in each response)
-- `run_workflow` — execute entire workflow (requires `userConfirmed: true`)
+- `run_workflow` — execute entire workflow (requires `userConfirmed: true`). Returns `{ run_id }`; you MUST poll `get_run_status({ run_id })` every 5s until terminal.
 - `get_node_outputs` — retrieve execution results
 - `cancel_job` — cancel an in-progress async job
 
 ### Billing
 
 - `get_credit_balance` — check remaining credits
-- `get_pricing` — credit costs per operation/model
+- `get_pricing` — two modes: (1) lookup rate cards by operation/model, (2) **chain mode** — pass `{ chain: [{ type, model?, config? }, ...] }` with every AI node in your planned pipeline to get a server-computed `totalUpperBound` for custom-build cost quoting. Always use chain mode for custom builds so small nodes like textAI are never dropped from the sum.
 
 ### Products (API publishing)
 

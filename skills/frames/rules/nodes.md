@@ -74,7 +74,7 @@ There are 5 socket types. Connections are only valid between compatible sockets:
 
 ## Configuring nodes
 
-Each node has configurable fields set via `update_node_data` or in `build_graph` dataUpdates. The server validates all values and returns clear error messages for out-of-range parameters. Mutation responses include `configurableFields` with full constraints (types, defaults, min/max/step, allowed options).
+Each node has configurable fields set via `build_graph` with `dataUpdates` (partial merge). The server validates all values and returns clear error messages for out-of-range parameters — with the field's full schema in `details.fieldErrors`. Unambiguous scalar type mismatches (e.g., `"off"` for a boolean) are auto-coerced.
 
 Common fields:
 

@@ -2,7 +2,7 @@
 
 ## Golden rules
 
-1. **ALWAYS use `build_graph`** — never `add_node` + `connect_nodes` individually. `build_graph` is atomic, 1 call, auto-positions nodes in a clean DAG layout.
+1. **`build_graph` is the ONLY graph mutation tool.** It supports `addNodes`, `addEdges`, `dataUpdates` (partial merge), `removeNodeIds`, and `removeEdgeIds` — all atomic in one call. Auto-positions new nodes in a clean DAG layout. The old single-node tools (`add_node`, `remove_node`, `update_node_data`, `connect_nodes`, `disconnect_nodes`, `list_edges`) have been removed.
 2. **ALWAYS enrich prompts** — never connect `textInput` directly to `imageAI` or `videoAI`. Route through `textAI` with a prompt template first. This is the single biggest quality improvement.
 3. **Image first, then video** — video generation is slow (1–4 min) and expensive. Generate an image first, iterate until it looks right, then use it as a start frame for video. Don't skip straight to video.
 4. **One Text AI per purpose** — when a workflow needs both a video prompt AND a narration script, use TWO separate `textAI` nodes. Each feeds ONLY its downstream node. Never connect narration to video or vice versa.
@@ -151,7 +151,7 @@ websiteResearch ──brandDocument──→ textAI #1 (video prompt) ──→ 
        └──brandDocument──→ textAI #2 (narration) ──→ voiceAI ────────────────────────────────┘
 ```
 
-`websiteResearch` has NO input sockets — the URL is configured via `update_node_data({ data: { url: "https://..." } })`. It outputs `brandDocument` (text analysis), `colorPalette` (colors), and `screenshots` (images).
+`websiteResearch` has NO input sockets — the URL is configured via `build_graph` with a `dataUpdates` entry (e.g. `dataUpdates: [{ nodeId: "...", data: { url: "https://..." } }]`). It outputs `brandDocument` (text analysis), `colorPalette` (colors), and `screenshots` (images).
 
 **Provider selection**: `websiteResearch` has a `provider` field (default `firecrawl`). Set `provider: "standard"` when the user wants to avoid spending Firecrawl credits — it uses free fetch+cheerio, works on server-rendered marketing sites, but skips screenshots. If the workflow downstream uses the `screenshots` output, stay on `firecrawl`. If Firecrawl credits are exhausted, the node returns an actionable error telling the user to switch providers.
 
@@ -196,7 +196,7 @@ textInput (JSON array) → iterator → textAI → imageAI → videoAI → close
 
 1. `list_workflows` — check for existing workflows to duplicate
 2. `create_workflow` — new empty workflow
-3. `build_graph` — add ALL nodes and edges in one call (never individual add_node + connect_nodes)
+3. `build_graph` — add ALL nodes and edges in one call (the only graph mutation tool)
 4. `set_product_inputs` — mark input nodes (textInput, imageInput, videoInput) as `product_inputs` and the final output node (e.g., videoCaptions, videoAI, imageAI) as `product_outputs`. This makes the workflow ready for `run_workflow` with `userInputs` and for publishing as a product API.
 5. `validate_workflow` — check for issues
 6. Share the workflow URL with the user
@@ -211,10 +211,17 @@ textInput (JSON array) → iterator → textAI → imageAI → videoAI → close
 
 Before telling the user a workflow is ready:
 
-1. `validate_workflow` — fix any reported issues
-2. All AI nodes have models set
-3. All required inputs are connected (check with `get_node_type_info`)
-4. Input nodes have content or are clearly for user input at run time
-5. No narration/script Text AI connected to Video AI (common mistake)
-6. Text AI nodes feeding downstream AI have `maxOutputChars` set within the downstream model's prompt limit (Imagen 4 = 1400, Kling/Veo = 9500, voice = 4500)
-7. `set_product_inputs` was called — input nodes marked as product inputs, final output node marked as product output
+1. `validate_workflow` — fix any reported `issues` (hard errors).
+2. **Surface all `warnings` to the user as one consolidated question** before proceeding to execution. Warnings include:
+   - `default_prompt_template` — an AI node is using its seeded default prompt template; you haven't customized it for this workflow.
+   - `default_model` — an AI node is on its seeded default model; you didn't pick one.
+   - `missing_aspect_ratio` — an `imageAI` / `videoAI` node has no `aspectRatio`.
+   - `empty_input` — a `textInput` / `imageInput` / `videoInput` has no content.
+
+   If `warnings.length > 0`, do NOT run the workflow. Ask the user: "I left [list] at defaults — want me to customize them to your brand before we run?" Only proceed once the user answers.
+3. All AI nodes have models set.
+4. All required inputs are connected.
+5. Input nodes have content or are clearly for user input at run time.
+6. No narration/script Text AI connected to Video AI (common mistake).
+7. Text AI nodes feeding downstream AI have `maxOutputChars` set within the downstream model's prompt limit (Imagen 4 = 1400, Kling/Veo = 9500, voice = 4500).
+8. `set_product_inputs` was called — input nodes marked as product inputs, final output node marked as product output.

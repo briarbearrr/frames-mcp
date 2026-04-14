@@ -304,9 +304,13 @@ When a workflow is producing decent results and the user wants to try variations
 
 Don't chain three `textAI` nodes to refine a prompt when one with a good template and clear instructions can do the job. Every extra node adds latency, cost, and a point of failure. Add nodes only when they serve a distinct purpose (e.g., separate enrichment for video prompt vs narration script).
 
-### Use gate nodes for optional branches
+### Use gate nodes for human-in-the-loop candidate selection
 
-When building a workflow that might be used with or without certain features (e.g., voiceover, captions), use `gate` nodes to toggle branches on/off. This lets one workflow serve multiple use cases instead of building separate workflows for each variation.
+Insert a `gate` node between a generator (`imageAI`, `videoAI`, `storyAI`, etc.) and its downstream consumer when the user should pick from multiple generated candidates before the pipeline commits to the expensive next step. Classic placement: `imageAI → gate → videoAI` — the user regenerates images until one looks right, picks it in the gate, and only then does the pipeline burn credits on video.
+
+Gate does NOT toggle branches on/off — it is a pass-through selector with one `any` input and one `any` output. It accumulates candidates across runs (set `maxCandidates: 'accumulate'` — the default), the user pins one via the UI, and downstream nodes resolve to the pinned candidate.
+
+Always set `productLabel` (user-facing text on product pages) and `productName` (semantic slug) when the workflow will be published — without them, custom product pages can't address the gate by name and the default page shows a generic "Gate" label.
 
 ### Video merge order matters
 

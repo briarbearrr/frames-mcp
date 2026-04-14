@@ -155,6 +155,108 @@ websiteResearch ──brandDocument──→ textAI #1 (video prompt) ──→ 
 
 **Provider selection**: `websiteResearch` has a `provider` field (default `firecrawl`). Set `provider: "standard"` when the user wants to avoid spending Firecrawl credits — it uses free fetch+cheerio, works on server-rendered marketing sites, but skips screenshots. If the workflow downstream uses the `screenshots` output, stay on `firecrawl`. If Firecrawl credits are exhausted, the node returns an actionable error telling the user to switch providers.
 
+### Retrofitting brand context into an essential
+
+Essentials (`use_essential`) ship with a fixed graph that does NOT include `websiteResearch`. When the user has given a URL, you must inject it after copying the essential:
+
+1. `use_essential({ essentialId })` → returns `workflow_id`.
+2. `get_workflow({ workflowId })` → identify the `textAI` (and `imageAI` if present) node IDs and their text/image input handle IDs.
+3. `build_graph` with one atomic call adding the research node AND edges:
+   ```
+   build_graph({
+     workflowId,
+     addNodes: [
+       { tempId: "research", type: "websiteResearch", data: { url: "<user URL>", provider: "firecrawl" } }
+     ],
+     addEdges: [
+       { source: "research", sourceHandle: "brandDocument", target: "<textAI id>", targetHandle: "<text input handle>" },
+       // If the essential has imageAI and you want visual grounding:
+       { source: "research", sourceHandle: "screenshots", target: "<imageAI id>", targetHandle: "<image input handle>" }
+     ]
+   })
+   ```
+4. Update the `textAI` prompt via `dataUpdates` to reference the brand document explicitly (e.g. "Using the brand document from the connected input, write a 15-word voiceover for …"). Do NOT hardcode facts the brand document will supply.
+5. `validate_workflow`, then run.
+
+Do NOT skip this step even if the essential "already works" — without `websiteResearch`, the output will be generic and the user will reject it. This is the single most common cause of "the video has no mention of my company" complaints.
+
+## Pattern: TikTok 3-scene branded ad (default for any branded short-form request)
+
+This is the **default** topology when the user asks for a branded ad / TikTok / Reel / short-form marketing video AND has provided a URL. Deviate only on explicit user rejection or when `get_pricing({ chain: [...] })` shows the rich default physically cannot fit the budget.
+
+```
+websiteResearch ─brandDocument─┐
+imageInput (user logo/photo) ──┤
+                               ├─→ textAI (3-scene concept)
+                               │        │
+                               │        ├─→ textAI #vid1 → imageAI #1 → videoAI #1 ──┐
+                               │        ├─→ textAI #vid2 → imageAI #2 → videoAI #2 ──┤
+                               │        └─→ textAI #vid3 → imageAI #3 → videoAI #3 ──┤
+                               │                                                     ↓
+                               └─→ textAI #narration → voiceAI              videoMerge
+                                                         │                    (videos)
+                                                         ↓                       │
+                                                    videoCaptions ←──────────────┘
+```
+
+**Key wiring rules:**
+
+- `imageInput` feeds each `imageAI` as a reference image (brand anchor) — never directly to `videoAI` as a raw start frame.
+- The "3-scene concept" `textAI` node receives both `websiteResearch.brandDocument` and the user's original `textInput` so the concept is specific to the brand.
+- Each scene's video-prompt `textAI` is seeded with ONE scene of the concept — use three separate `textAI` nodes (per the "One Text AI per purpose" golden rule), not one multi-output template.
+- **`videoMerge` has ONE input handle named `videos` that accepts up to 10 connections.** Every `videoAI.video` → `videoMerge.videos` edge targets the same `videos` handle. **Never** write `video1` / `video2` / `video3` as target handles — that's the single most common graph-building mistake.
+- `voiceAI` and `videoCaptions` are included **by default**. Strip only on explicit user rejection.
+
+**Narration budget for merged outputs** — set the narration `textAI.maxOutputChars` against the **merged** duration (3×5s = 15s → ~225 chars at ~15 chars/sec), not a single scene. The `narration_length_mismatch` validator walks through `videoMerge` to compute the correct budget; if you see a stale single-scene warning, the validator couldn't trace the path — double-check the `voiceAI → videoCaptions.audio` and `videoMerge → videoCaptions.video` edges are both present.
+
+**Budget stripping priority** — if `get_pricing` shows overflow, drop nodes in this order until it fits: (1) 3 scenes → 1 scene (one `imageAI` + one `videoAI`, skip `videoMerge`), (2) `voiceAI` → none, (3) `videoCaptions` → none. Never strip `imageInput` or `websiteResearch`.
+
+## Pattern: Human-in-the-loop gate before expensive steps
+
+Insert a `gate` between a cheap upstream generator and an expensive downstream consumer so the user picks a winning candidate before credits are committed. The canonical placement is `imageAI → gate → videoAI` — image runs are cheap, the user iterates until one looks right, pins it in the gate, and only then does `videoAI` fire on the chosen frame.
+
+```
+textAI (image prompt) → imageAI → gate → videoAI → videoCaptions
+```
+
+```
+build_graph({
+  workflowId: "...",
+  addNodes: [
+    { tempId: "img", type: "imageAI", data: { promptTemplate: "social-visual", aspectRatio: "9:16" } },
+    { tempId: "pick", type: "gate", data: {
+        productLabel: "Pick your hero frame",
+        productName: "hero-frame",
+        maxCandidates: "accumulate"
+    } },
+    { tempId: "vid", type: "videoAI", data: { promptTemplate: "marketing-ad", aspectRatio: "9:16" } }
+  ],
+  addEdges: [
+    { sourceNode: "img",  sourceHandle: "image",  targetNode: "pick", targetHandle: "input" },
+    { sourceNode: "pick", sourceHandle: "output", targetNode: "vid",  targetHandle: "startFrame" }
+  ]
+})
+```
+
+**Rules:**
+
+- Gate has a single `any` input (max 1 connection) and a single `any` output — it passes the **selected** candidate through, not the latest run. The socket type is inferred from the incoming edge, so the same gate type works for `image`, `video`, `audio`, or `text`.
+- `maxCandidates: "accumulate"` (default) keeps every upstream run in the candidate gallery. Set to `1` only when the user explicitly wants each new run to replace the previous one.
+- Set `productLabel` + `productName` on every gate you intend to publish — without them, custom product pages can't address the gate via `<ProductGate name="..." />` and the default page falls back to a generic "Gate" label.
+- In published API runs, gates are resolved by `gate_config` (see [products.md](products.md)) — `auto_approve` passes the most recent upstream output through without human intervention, `skip` behaves the same with a softer semantic, `fail` hard-blocks API execution. Design gates so `auto_approve` produces a usable pipeline when the caller is an API, not a human.
+
+**When to insert one:**
+
+- Before any `videoAI` that the user wants to "get right" — image-to-video runs are the single most expensive step in most pipelines.
+- Before a `slideshow` / `videoMerge` when you've generated more candidates than slots (e.g., 5 `imageAI` runs, pick 3).
+- After a `storyAI` scene breakdown when the user wants to approve the scene concept before committing to per-scene image/video generation.
+- As a review point between `voiceAI` and `videoCaptions` when tone matters.
+
+**When NOT to insert one:**
+
+- Don't use gates to "toggle branches on/off" — that's not what they do. Gates are selectors, not switches. If you want conditional execution, omit the branch entirely or build a separate workflow variant.
+- Don't stack a gate in front of every node — each gate is a hard pause that blocks downstream execution until the user picks. Use them only at genuine decision points.
+
 ## Pattern: Multi-scene video (storyAI)
 
 For longer content with multiple scenes, use `storyAI` to generate per-scene prompts. Chain image references for character consistency.
@@ -211,6 +313,7 @@ textInput (JSON array) → iterator → textAI → imageAI → videoAI → close
 
 Before telling the user a workflow is ready:
 
+0. **Custom prompt shape** — for every AI node (`textAI`, `imageAI`, `videoAI`, `storyAI`) that uses a custom prompt, set **both** `promptTemplate: "custom"` AND `customPrompt: "..."`. The MCP server now auto-coerces a plain `prompt` field to this pair (so `data: { prompt: "..." }` works), but prefer the explicit form in new code — it's clearer and future-proof.
 1. `validate_workflow` — fix any reported `issues` (hard errors).
 2. **Surface all `warnings` to the user as one consolidated question** before proceeding to execution. Warnings include:
    - `default_prompt_template` — an AI node is using its seeded default prompt template; you haven't customized it for this workflow.

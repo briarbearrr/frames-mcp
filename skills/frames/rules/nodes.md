@@ -26,7 +26,7 @@
 | Type             | Label           | Purpose                                                   |
 | ---------------- | --------------- | --------------------------------------------------------- |
 | `globalStyle`    | Global Style    | Applies a visual style template to all connected AI nodes |
-| `gate`           | Gate            | Approval checkpoint — pauses execution for review         |
+| `gate`           | Gate            | Human-in-the-loop candidate selector — accumulates upstream runs, user picks one, downstream sees the pick |
 | `trendSelector`  | Trend Selector  | Picks trending topics from the trend database             |
 | `tiktokResearch` | TikTok Research | Analyzes TikTok trends and content                        |
 
@@ -85,6 +85,7 @@ Common fields:
 - **Voice AI**: `model`, `presetVoiceId` (voice ID from `list_voices`), `stability`, `similarityBoost`
 - **Video AI**: `model`, `mode` (standard/pro), `duration`, `aspectRatio`
 - **Website Research**: `url`, `crawlDepth` (1/2/3), `provider` (`firecrawl` = 5 credits, screenshots + JS rendering, `standard` = 3 credits, fetch+cheerio, SSR sites only, no screenshots). Default `firecrawl`. If the user wants to spend fewer credits or the site is static HTML, set `provider: "standard"`.
+- **Gate**: `productLabel` (user-facing prompt, e.g. "Pick your hero image"), `productName` (semantic slug for `<ProductGate name="..." />` — required for custom product pages), `maxCandidates` (`"accumulate"` keeps all runs, `1` replaces), `maxRetries` / `maxRetriesUnlimited` (retry cap for product-form runs), `showOnNode` (render candidate gallery inline on canvas). Gate has ONE `any` input + ONE `any` output, max 1 incoming connection; it infers socket type from whatever's plugged in and passes the selected value straight through.
 
 Use `get_node_type_info` for the exact field schema of any node if you need to check constraints before setting values.
 

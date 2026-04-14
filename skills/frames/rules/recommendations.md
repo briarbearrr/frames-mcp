@@ -33,6 +33,48 @@ discover_options({
 
 If the intent is generic ("what can I build for $X"), omit `include`/`exclude` and let `discover_options` rank across everything.
 
+## Step 1b — Call `get_trend_inspiration` silently (creative intent only)
+
+When the user's intent is **creative** — they're asking for a video ad, marketing concept, hook idea, or brand/product pitch (anything that will result in a concept pitch in Step 3) — you MUST also call `get_trend_inspiration` in this turn, in parallel with `discover_options`. Skip this step only for purely inventory-style questions ("list my workflows", "what's my credit balance").
+
+```
+get_trend_inspiration({
+  keywords: <3-6 niche/audience/product terms derived from the user>,
+  platform: "tiktok",   // default; omit for cross-platform
+  limit: 3,
+  random: true,
+})
+```
+
+**Keyword derivation:** pull from the user's business/product/industry/audience ("handmade candles for gift shops" → `["candles", "home decor", "gift", "asmr", "aesthetic"]`). Mix concrete product words with style/vibe descriptors. Do NOT include the dollar amount or generic words like "video" / "ad".
+
+**What you get back:**
+
+```
+{
+  trends: [
+    {
+      caption, hashtags, play_count, engagement_rate,
+      video_style, video_content, hook_style, hook_content
+    },
+    ...
+  ]
+}
+```
+
+**Silent grounding rule (HARD):** The `trends` array is inspiration data for YOU, not the user. Absorb the `hook_style`, `video_style`, `hook_content`, `video_content` descriptions and let them shape the hooks, pacing, and structure of the concepts you generate in Step 3. Then discard them.
+
+You MUST NOT:
+- Mention trends, "trending", "top-performing", TikTok, engagement rates, play counts, or the tool in any form to the user
+- Cite a specific trend, copy its caption, or paraphrase it closely
+- Say "based on what's working right now" or any variation
+- Surface hashtags, URLs, or any field from the response
+- Reference the fact that you looked at data
+
+The user sees only the creative concept — the trend grounding is invisible. Think of it as your creative director whispering references while you write; the final pitch reads as your own idea.
+
+**Empty result (`trends: []`):** proceed silently with pure creative reasoning from the vocabulary in Step 3. Do not tell the user the lookup was empty.
+
 **Response shape:**
 
 ```
@@ -124,7 +166,17 @@ Only *after* the creative concept is locked in do you describe the pipeline and 
   })
   ```
 
-  The response returns `perNode` AND a server-computed `totalUpperBound`. **Use `totalUpperBound` verbatim** — never hand-sum the `perNode` entries. That is how small costs (textAI ≈ 1 credit) get dropped and quotes come out low. Do not eyeball from billing.md tier tables. The quoted number must be the `totalUpperBound`, never a hopeful midpoint.
+  The response returns `perNode`, a server-computed `totalUpperBound`, a `totalFloorEstimate`, and a `hasWorstCaseFallback` flag. **Use `totalUpperBound` verbatim** — never hand-sum the `perNode` entries. That is how small costs (textAI ≈ 1 credit) get dropped and quotes come out low. Do not eyeball from billing.md tier tables.
+
+  **If `hasWorstCaseFallback: true`**, the ceiling is inflated (typically 3–5× reality) because one or more nodes had no model/config specified, so the server used the most expensive row in that operation's rate card. Two options: (a) re-call `get_pricing` with explicit `model` + `config` on every chain entry to get a tight ceiling, or (b) present the quote honestly as `"up to ${totalUpperBound} credits (real cost likely closer to ${totalFloorEstimate})"`. Never hide the fallback — the user deserves to know the quote is a worst case.
+
+### Concept realizability check
+
+Before finalizing a pitch, walk every visual element in the Concept sentence and verify it maps to a pipeline stage. Common mismatches:
+
+- Concept says "logo fades in" / "brand text overlay" / "title card" / "on-screen caption of the product name" — but the pipeline has no `logoOverlay`, no text overlay stage, and only `videoCaptions` (which captions the voiceover, not a static title). **Drop the line from the pitch** or add the missing stage. Don't promise what the graph can't render.
+- Concept says "music swells" or "synchronized to beat" — but the pipeline has no `audioOverlay` / music track. Drop or add.
+- Concept says "product spins 360°" — but `videoAI` can't guarantee a specific motion arc from a start frame. Soften to "gently rotates" or equivalent.
 
 ### Concept vocabulary (draw from these patterns)
 
@@ -136,6 +188,10 @@ These are the trending motifs the Fresh concepts bucket should sample from. Mix 
 - **Text-first hooks**: text appears before product ("the only X that does Y"), kinetic typography countdown, question-answer reveal
 - **Story beats**: "this or that" binary choice, "wait for it" delayed payoff, "things I wish I knew", "POV: you just discovered…"
 - **Motion tricks**: match-cut transitions, tracking-shot continuous take, scale-shift (tiny→massive), camera whip-pan between scenes
+- **3-beat ad structure**: hook (1 s text pop) → payoff (product in action) → CTA (logo + text)
+- **On-screen text-first**: bold claim flashes before the product appears
+- **Scroll-stop sting**: percussive audio hit synced to the first cut
+- **Logo reveal**: brand mark slides / flashes in at the end of the payoff or CTA
 
 ### Sizing a custom build to the budget
 
@@ -220,7 +276,11 @@ If `discover_options` returns `options: []`, use `cheapest_option`, `note`, and 
 
 ## Do not
 
+- Do not pitch a branded custom build that omits multi-scene pacing, voiceover, and captions unless (a) the user has explicitly rejected those components in this conversation, or (b) `get_pricing` shows the rich default physically cannot fit the budget. A flat `websiteResearch → textAI → imageAI → videoAI` is a fallback, not a default. See workflow-patterns.md → "TikTok 3-scene branded ad" for the default topology.
+- Do not propose a branded ad concept without first running the Pre-flight research phase (SKILL.md) and surfacing candidate brand images to the user. If the user declines to pick one and the site had nothing usable, proceed but note in the concept line that the output will look generic.
 - Do not skip `discover_options` — ever. It's the only source of truth.
+- Do not skip `get_trend_inspiration` when the user is asking for a creative concept / video ad / hook idea. Call it in parallel with `discover_options`.
+- Do not mention, cite, paraphrase, or surface `get_trend_inspiration` results in the user-facing response. It is silent grounding only.
 - Do not use bucket headers or separate library items from custom builds. Everything is a single concept list.
 - Do not name any concept by its format ("Slideshow ad", "Hero shot", "Cinematic ad") — it must be a creative idea.
 - Do not propose a concept you cannot tie to a specific trending pattern from the vocabulary.
@@ -234,3 +294,4 @@ If `discover_options` returns `options: []`, use `cheapest_option`, `note`, and 
 - Do not invent workflows or products that aren't in the `discover_options` response.
 - Do not present more than 6 concepts total — overwhelm kills ideation.
 - Do not propose a concept that ignores the user's stated brand, industry, or URL. Every concept must be specific to their business — if you could copy-paste the pitch to any other company, it isn't specific enough. Name the brand in the concept name.
+- **Never invent concrete facts to make a concept feel specific.** Do not write fictional listing prices, city names, square footage, product SKUs, menu items, employee names, or any verifiable detail the user didn't provide. If you need a specific to make the concept land, ASK the user for it or pull it from `websiteResearch` output — don't make it up.

@@ -54,20 +54,68 @@ You interact with Frames through MCP tools. You can create workflows, add and co
 
 ## Remember user context
 
-When the user names a business, brand, industry, or drops a URL in the conversation, you MUST carry that context into every subsequent action:
+When the user names a business, brand, industry, or drops a URL, it becomes a HARD REQUIREMENT for the rest of the conversation — you don't get to forget it between turns.
 
-1. **Treat it as a hard requirement.** Every concept, prompt, and cost quote must serve that specific brand. A generic "key-turn reveal" becomes "Sotheby's key-turn reveal". A stock prompt becomes one that names the brand and industry.
-2. **Offer `websiteResearch` when a URL is given.** It extracts brand context, color palette, and screenshots you can feed into `textAI` prompts. If the user declines, bake the brand name + industry explicitly into every `textAI` node's prompt via `build_graph` with `dataUpdates`.
-3. **Name concepts with the brand embedded** — never a generic format name. "Sotheby's golden-hour glide" ✓, "Golden-hour glide" ✗.
-4. **Never propose a concept that would work for any business.** The pitch must only make sense for the user's specific brand. If you catch yourself writing a concept that could be copy-pasted to a restaurant or a SaaS, stop and rewrite it.
+### Pre-flight research phase (runs BEFORE you ask the user anything)
+
+When the user gives you a URL for a branded ad / marketing video / short-form request, you MUST do your own research **before** asking clarifying questions. The goal is to walk back to the user with a concrete starting point — a brief + candidate images — not an empty set of questions.
+
+**Steps, in order:**
+
+1. **Fetch the page** — use `WebFetch` (fast, cheap, always available) or `mcp__firecrawl__firecrawl_scrape` (when `WebFetch` returns a JS shell and you need rendered content). Ask for a compact summary: company name, one-line positioning, 3–5 key products/services, tone/voice, and primary color if visible.
+2. **Harvest image candidates** — from the fetched HTML / markdown, extract up to 5 candidate image URLs: the `og:image`, any `<img>` whose class / alt contains `logo`, the largest `<img>` in `<header>` or hero section, and any product photos. Absolute-resolve each against the base URL. You are a model reading markdown / HTML — no code, no scraper, just pattern-match.
+3. **Write a 3-line brief** — (a) brand name + one-line positioning, (b) the single visual motif the site leans on (e.g. "clean white vinyl fences against manicured lawns"), (c) the emotional beat the ad should hit (e.g. "suburban pride / craftsmanship / curb-appeal envy").
+4. **Present to the user** — one message, four parts: the 3-line brief, the candidate image URLs as a numbered list, the default assumptions ("voiceover + captions + 3-scene pacing = on by default"), and the two outstanding questions ("which image(s) to anchor on" and "anything in the brief to change"). Do NOT ask about voiceover / captions / scene count unless the user raises it — those are defaults the user can override.
+
+**This is not optional for URL-based requests.** Skipping it and asking "what's your logo / what's your brand vibe" when you could have fetched it yourself wastes the user's turn and makes you look lazy. The only time you skip this phase is when the URL is obviously unfetchable (localhost, private, login-gated) — in which case you fall back to the mandatory pre-build checklist's "ask for brand name, tagline, primary color" flow.
+
+**Separation from the `websiteResearch` node**: the pre-flight research is YOUR research, done with YOUR tools (`WebFetch` / firecrawl MCP), to seed the conversation. It does NOT replace the `websiteResearch` node in the final pipeline — the node still runs at execution time so the AI prompts get the full brand document. Pre-flight is "what the agent knows before talking"; the node is "what the pipeline sees at run time."
+
+### Mandatory pre-build checklist (run BEFORE `build_graph` / `use_essential` / `create_workflow`)
+
+1. **If a URL was given → you MUST add a `websiteResearch` node and run it before building the rest of the pipeline.** Not "offer" — add it. The only exceptions are:
+   - The user has explicitly declined in this conversation ("don't scrape", "skip research"), OR
+   - The URL is obviously unfetchable (localhost, private, paywalled login).
+
+   In either exception, you MUST instead ask the user for: brand name, one-line tagline, primary color, and any specific product/listing/offering they want featured — and bake those verbatim into every downstream `textAI` prompt via `dataUpdates`.
+
+2. **Brand imagery is mandatory for any branded ad request.** The pre-flight research phase above should have already surfaced candidate image URLs from the site. Your job here is to get the user's pick: "Which of these images should we anchor on? Or paste a different URL." The chosen image(s) become `imageInput` node(s) wired into the ad pipeline per the "TikTok 3-scene branded ad" pattern in [rules/workflow-patterns.md](rules/workflow-patterns.md). If the site had no usable images AND the user declines to provide one, note that the output will look generic and proceed — but this should be rare, because the pre-flight phase usually finds at least a logo or `og:image`.
+
+3. **Never invent concrete facts.** If the user hasn't told you the city, price, square footage, product SKU, menu item, or any other specific, DO NOT write it into a prompt. Describe the scene and style, and let the brand name + real scraped context carry the specificity. Fabricated listings ("Malibu. Six bedrooms. Twenty-two million.") are a bug — the user will notice and lose trust. If you need a specific to make the concept land, ASK the user or pull it from `websiteResearch` output.
+
+4. **Retrofit brand context into essentials.** When you copy an essential via `use_essential`, it will NOT include `websiteResearch`. You MUST add it and wire its outputs into the essential's `textAI` / `imageAI` nodes before validating. See [rules/workflow-patterns.md](rules/workflow-patterns.md) → "Retrofitting brand context into an essential".
+
+### Concept naming
+
+- Name concepts with the brand embedded: "Sotheby's golden-hour glide" ✓, "Golden-hour glide" ✗.
+- Never propose a concept that would work for any business. If the pitch could be copy-pasted to a restaurant or a SaaS, rewrite it.
 
 This rule applies for the entire conversation once established — you don't get to "forget" the brand between turns.
+
+## Concept-refinement phase (before `build_graph`)
+
+For any marketing / ad / short-form video request, you MUST produce a **concept brief** and show it to the user before calling `build_graph` / `use_essential`. The brief is a 3-scene TikTok-native structure:
+
+- **Scene 1 — Hook (0–3 s)**: what stops the scroll. One-line visual beat + on-screen text (if any).
+- **Scene 2 — Payoff (3–10 s)**: the product / service in action. One-line visual beat + voiceover line (if voiceover enabled).
+- **Scene 3 — CTA (10–15 s)**: the call to action. One-line visual beat + on-screen text or voiceover line.
+
+Each scene names: the shot, the on-screen text (if any), the voiceover line (if any), and whether the user-provided image (logo / product / hero) appears.
+
+Example brief shape (show the user this structure):
+
+> **Concept: "<Brand> <hook name>"**
+> - **Hook (0–3 s)**: Close-up on [visual]. On-screen text: "[hook line]". Logo micro-flash.
+> - **Payoff (3–10 s)**: [product / service in action]. Voiceover: "[one line]".
+> - **CTA (10–15 s)**: [final shot]. On-screen text: "[CTA]". Logo + URL.
+
+Only after the user approves the brief (or edits it) do you call `build_graph`. Do not skip this step — a flat pipeline without scene structure produces generic "any business" output and the user will reject it.
 
 ## Polling workflow execution
 
 When you call `run_workflow`, it returns `{ run_id, status: "running" }` and starts execution in the background. You MUST enter a polling loop:
 
-1. Call `get_run_status({ run_id })` every 5 seconds.
+1. Call `get_workflow_run_status({ run_id })` every 5 seconds.
 2. Continue polling until `status` is not `"running"` or `"pending"` (i.e., `"completed"`, `"partial"`, `"failed"`, or `"cancelled"`).
 3. **Never hand control back to the user mid-run.** Never tell the user to say "status" or "check progress".
 4. On `completed`: read the outputs from the response and present the final result.
@@ -117,6 +165,7 @@ Load the relevant rules file when working in each area:
 - `list_style_templates` — visual style presets
 - `list_voices` — ElevenLabs voice options
 - `list_workflow_templates` — pre-built workflow templates
+- `get_trend_inspiration` — fetch trending content references for ideation
 
 ### Workflow management
 
@@ -131,7 +180,8 @@ Load the relevant rules file when working in each area:
 ### Execution (costs credits)
 
 - `run_node` — execute a single node (default — follow `_agentInstructions` in each response)
-- `run_workflow` — execute entire workflow (requires `userConfirmed: true`). Returns `{ run_id }`; you MUST poll `get_run_status({ run_id })` every 5s until terminal.
+- `run_workflow` — execute entire workflow (requires `userConfirmed: true`). Returns `{ run_id }`; you MUST poll `get_workflow_run_status({ run_id })` every 5s until terminal.
+- `get_workflow_run_status` — poll a running workflow for per-node status, errors, and credits charged
 - `get_node_outputs` — retrieve execution results
 - `cancel_job` — cancel an in-progress async job
 

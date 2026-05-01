@@ -1,16 +1,16 @@
 {
-  "name": "frames-mcp",
-  "version": "2.0.1",
-  "description": "Install the Frames MCP server and agent skills for Claude Code",
+  "name": "wyren-mcp",
+  "version": "1.0.0",
+  "description": "Install the Wyren MCP server and agent skills for Claude Code",
   "bin": {
-    "frames-mcp": "setup.mjs"
+    "wyren-mcp": "setup.mjs"
   },
   "files": [
     "setup.mjs",
     "skills/"
   ],
   "keywords": [
-    "frames",
+    "wyren",
     "mcp",
     "claude",
     "ai",
@@ -20,6 +20,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/briarbearrr/frames-mcp.git"
+    "url": "git+https://github.com/briarbearrr/wyren-mcp.git"
   }
 }

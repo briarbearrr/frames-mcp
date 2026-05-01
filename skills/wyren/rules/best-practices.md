@@ -128,6 +128,24 @@ textAI → videoAI                                               (works, but les
 
 videoAI also accepts `endFrame`, `referenceImages`, and `videoReference` inputs depending on the model. Use `get_node_type_info({ nodeType: "videoAI" })` for full handle details.
 
+## Seamless looping video
+
+For ambient/background videos that need to loop cleanly (hero sections, auth page backgrounds, product b-roll), the last frame must match the first frame — otherwise the loop point is a visible jump cut.
+
+**Trick**: connect the **same `imageAI` output to both `startFrame` AND `endFrame`** on the videoAI node. The model will plan a cyclical motion that begins and ends at that exact frame.
+
+```
+                       ┌─ startFrame ─┐
+textAI → imageAI ──────┤              ├──→ videoAI  (seamless loop)
+                       └── endFrame ──┘
+```
+
+Prompt for the videoAI should describe **cyclical motion** so the model has something to interpolate: "slowly drifts up and returns", "gently pulses in and out", "orbits once and settles back". Avoid directional prompts ("pushes forward", "flies past") that can't naturally return to the start.
+
+Models that support this: Veo 3.1 (fast + standard), Kling V2.5+, Kling O1, Kling V3, Kling V3 Omni. Check `inputs.endFrame: true` via `get_model_capabilities` before attempting.
+
+**When NOT to do this**: if the user wants a one-shot narrative clip (establishing shot, scene beat), don't force a loop — the cyclical constraint compromises pacing. Only use this technique for intentionally-ambient footage.
+
 ## Iterate on images before generating video
 
 Video generation is slow (1-4 minutes) and 10-50x more expensive than image generation. **Always get the image right first.** Run `imageAI`, review the result, and show it to the user before proceeding to `videoAI`. If the image doesn't look right, regenerate it — don't commit to a video run with a bad start frame.

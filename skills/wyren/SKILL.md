@@ -1,36 +1,36 @@
 ---
-name: frames
+name: wyren
 description: |
-  MUST INVOKE BEFORE calling ANY `mcp__frames__*` tool. Frames is an AI video generation
+  MUST INVOKE BEFORE calling ANY `mcp__wyren__*` tool. Wyren is an AI video generation
   platform for building, running, and publishing AI pipelines (text, image, video, voice,
   captions) via MCP. This skill defines the required execution policy, pricing/budget
-  playbook, node-by-node workflow discipline, and recommendation format — calling Frames
+  playbook, node-by-node workflow discipline, and recommendation format — calling Wyren
   MCP tools without loading it first will produce wrong behavior (skipped clarifications,
   unapproved full-workflow runs, malformed budget pitches, missing pricing lookups).
 
-  AUTO-TRIGGER on ANY of the following, with or without "/frames":
+  AUTO-TRIGGER on ANY of the following, with or without "/wyren":
   - Any mention of "video", "ad", "marketing video", "product video", "brand video",
     "slideshow", "reel", "voiceover", "AI pipeline", "workflow", "pipeline"
   - Any budget/credit/pricing question: "what can I build for $X", "what's possible
     with Y credits", "ideas for $X", "how much does X cost", "pricing for video"
   - Any industry-scoped video ideation: "I have a real estate agency / restaurant /
     SaaS / store — what video can I get", "video for my business"
-  - Any request to build, run, list, execute, publish, modify, or debug Frames
+  - Any request to build, run, list, execute, publish, modify, or debug Wyren
     workflows, nodes, products, templates, or API endpoints
-  - Any question about Frames models, credits, templates, MCP tools, or `mcp__frames__*`
-  - User types "/frames" or references the Frames platform by name
+  - Any question about Wyren models, credits, templates, MCP tools, or `mcp__wyren__*`
+  - User types "/wyren" or references the Wyren platform by name
 
-  If a `mcp__frames__*` tool looks like a direct answer to the user's question, that is
+  If a `mcp__wyren__*` tool looks like a direct answer to the user's question, that is
   the STRONGEST signal to load this skill first — never shortcut straight to the tool.
 metadata:
-  tags: frames, video, ai, mcp, workflow, pipeline, budget, marketing, ads, recommendations, real-estate, pricing, credits, business-video
+  tags: wyren, video, ai, mcp, workflow, pipeline, budget, marketing, ads, recommendations, real-estate, pricing, credits, business-video
 ---
 
-## What is Frames
+## What is Wyren
 
-Frames is a node-based AI workflow generation platform. Users build pipelines by connecting modular nodes that perform AI operations — text generation, image generation, video generation, voice synthesis, captions, and more. Each node does one thing; connecting them creates powerful content pipelines.
+Wyren is a node-based AI workflow generation platform. Users build pipelines by connecting modular nodes that perform AI operations — text generation, image generation, video generation, voice synthesis, captions, and more. Each node does one thing; connecting them creates powerful content pipelines.
 
-You interact with Frames through MCP tools. You can create workflows, add and connect nodes, configure AI models, execute pipelines, and publish them as API endpoints.
+You interact with Wyren through MCP tools. You can create workflows, add and connect nodes, configure AI models, execute pipelines, and publish them as API endpoints.
 
 ## How to interact
 
